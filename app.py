@@ -9,16 +9,13 @@ app.secret_key = 'dragonbot_secret_key'
 def init_db():
     conn = sqlite3.connect('vendas.db')
     cursor = conn.cursor()
-    # Cria tabela para o Webhook da Kirvano
     cursor.execute('''CREATE TABLE IF NOT EXISTS vendas 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT, status TEXT, valor TEXT, data_hora TEXT)''')
-    # Cria tabela para usuários do sistema
     cursor.execute('''CREATE TABLE IF NOT EXISTS usuarios 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT)''')
     conn.commit()
     conn.close()
 
-# Executa a criação das tabelas antes do app começar a rodar
 init_db()
 
 # --- ROTAS DE NAVEGAÇÃO ---
@@ -41,20 +38,15 @@ def robo_interface():
         return redirect(url_for('login_page'))
     return render_template('index.html')
 
-# --- NOVA ROTA PARA VER AS VENDAS (WEBHOOK TESTE) ---
 @app.route('/ver-vendas')
 def ver_vendas():
-    # Apenas para você conferir se os dados da Kirvano estão chegando
     conn = sqlite3.connect('vendas.db')
     c = conn.cursor()
     c.execute('SELECT * FROM vendas ORDER BY id DESC')
     lista_vendas = c.fetchall()
     conn.close()
-    
-    # Retorna uma lista simples no navegador para conferência
     if not lista_vendas:
         return "Nenhuma venda registrada ainda. Configure o Webhook na Kirvano."
-    
     html = "<h1>Lista de Vendas (Kirvano)</h1><ul>"
     for v in lista_vendas:
         html += f"<li>Nome: {v[1]} | E-mail: {v[2]} | Status: {v[3]} | Valor: {v[4]}</li>"
@@ -83,32 +75,45 @@ def auth():
     senha = request.form.get('password')
     conn = sqlite3.connect('vendas.db')
     c = conn.cursor()
-    # CORREÇÃO: Usando 'c.fetchone()' para validar o login
     c.execute('SELECT * FROM usuarios WHERE email = ? AND password = ?', (email, senha))
     user = c.fetchone()
     conn.close()
-
     if user:
         session['user_email'] = email
         return redirect(url_for('robo_interface'))
     return "Login inválido!", 401
 
-# --- WEBHOOK KIRVANO ---
+# --- WEBHOOK KIRVANO COM CRIAÇÃO AUTOMÁTICA DE USUÁRIO ---
 @app.route('/webhook-kirvano', methods=['POST'])
 def webhook():
     d = request.get_json()
     if d:
         cli = d.get('customer', {})
+        email_cliente = cli.get('email')
+        status_venda = d.get('status')
+        nome_cliente = cli.get('name')
+        
         conn = sqlite3.connect('vendas.db')
         c = conn.cursor()
-        # Salva os dados enviados pela Kirvano
+        
+        # 1. Registra a venda na tabela de vendas
         c.execute('INSERT INTO vendas (nome, email, status, valor, data_hora) VALUES (?, ?, ?, ?, ?)',
-                  (cli.get('name'), cli.get('email'), d.get('status'), d.get('total_price'), d.get('created_at')))
+                  (nome_cliente, email_cliente, status_venda, d.get('total_price'), d.get('created_at')))
+        
+        # 2. Se a venda for aprovada, cria o acesso automático
+        if status_venda == 'approved':
+            try:
+                # Definimos a senha inicial como os 6 primeiros dígitos do e-mail ou uma fixa
+                senha_inicial = "mudar123" 
+                c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email_cliente, senha_inicial))
+            except sqlite3.IntegrityError:
+                # Se o usuário já existir, não faz nada para não dar erro
+                pass
+        
         conn.commit()
         conn.close()
     return "OK", 200
 
 if __name__ == '__main__':
-    # Configuração de porta para o Railway
     porta = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=porta)
