@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro - DragonBot</title>
+    <style>
+        body { background: #0b0e14; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161a23; padding: 40px; border-radius: 20px; border: 1px solid #00d9ff; text-align: center; width: 350px; box-shadow: 0 0 20px rgba(0, 217, 255, 0.2); }
+        h2 { color: #00d9ff; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #00d9ff; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        .link { margin-top: 20px; font-size: 14px; }
+        a { color: #00d9ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="/static/logo.jpg" alt="Logo" style="width: 100px; margin-bottom: 10px;">
+        <h2>Criar Conta</h2>
+        <form action="/registrar_usuario" method="POST">
+            <input type="email" name="email" placeholder="Seu melhor e-mail" required>
+            <input type="password" name="password" placeholder="Crie uma senha" required>
+            <button type="submit">CADASTRAR AGORA</button>
+        </form>
+        <div class="link">Já é cliente? <a href="/login">Fazer Login</a></div>
+    </div>
+</body>
+</html>

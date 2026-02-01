@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DragonBot SaaS - O Futuro do Trader</title>
+    <style>
+        :root { --primary: #00d9ff; --bg: #0b0e14; --card: #161a23; --text: #ffffff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; }
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background: var(--card); border-bottom: 1px solid #2d333f; }
+        .logo img { height: 50px; }
+        .nav-btns button { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-login { background: transparent; color: var(--primary); border: 1px solid var(--primary); margin-right: 10px; }
+        .btn-signup { background: var(--primary); color: #000; border: none; }
+        .hero { text-align: center; padding: 100px 20px; background: radial-gradient(circle at center, #161a23 0%, #0b0e14 100%); }
+        .hero h1 { font-size: 3rem; margin-bottom: 20px; }
+        .hero span { color: var(--primary); }
+        .hero p { color: #888; max-width: 600px; margin: 0 auto 30px; line-height: 1.6; }
+        .pricing { display: flex; justify-content: center; gap: 30px; padding: 50px 20px; flex-wrap: wrap; }
+        .card { background: var(--card); border: 1px solid #2d333f; padding: 40px; border-radius: 20px; width: 300px; text-align: center; transition: 0.3s; }
+        .card:hover { border-color: var(--primary); transform: translateY(-10px); }
+        .card h2 { color: var(--primary); }
+        .price { font-size: 2.5rem; font-weight: bold; margin: 20px 0; }
+        .features { list-style: none; padding: 0; color: #aaa; margin-bottom: 30px; }
+        .features li { margin-bottom: 10px; }
+        .btn-buy { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        footer { text-align: center; padding: 50px; border-top: 1px solid #2d333f; color: #555; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><img src="/static/logo.jpg" alt="DragonBot"></div>
+        <div class="nav-btns">
+            <button class="btn-login" onclick="location.href='/login'">ÁREA DO CLIENTE</button>
+            <button class="btn-signup" onclick="document.getElementById('planos').scrollIntoView()">ASSINAR AGORA</button>
+        </div>
+    </nav>
+    <section class="hero">
+        <h1>Opere como um <span>Dragão</span> no Mercado</h1>
+        <p>A tecnologia SaaS que automatiza suas entradas na Deriv com precisão matemática.</p>
+        <img src="/static/logo.jpg" style="height: 150px; opacity: 0.3;">
+    </section>
+    <section class="pricing" id="planos">
+        <div class="card">
+            <h2>Mensal</h2>
+            <div class="price">R$ 97<span>/mês</span></div>
+            <ul class="features">
+                <li>Acesso ao Robô v1</li>
+                <li>Estratégia Dígito 7</li>
+                <li>Gestão de Banca</li>
+            </ul>
+            <button class="btn-buy" onclick="alert('Indo para Kirvano...')">ASSINAR AGORA</button>
+        </div>
+    </section>
+    <footer>&copy; 2026 DragonBot SaaS</footer>
+</body>
+</html>
