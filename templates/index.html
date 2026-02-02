@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>DragonBot - Dashboard Pro</title>
+    <title>DragonBot - Dashboard Multi-Estratégia</title>
     <style>
         :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
         body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; }
@@ -13,14 +13,14 @@
         
         .input-group { margin-bottom: 15px; text-align: left; }
         label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--primary); }
         
         .btn { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; transition: 0.3s; }
         .btn-auth { background: var(--primary); color: #000; }
         .btn-start { background: var(--success); color: #000; }
         .btn-start.active { background: var(--danger); color: white; }
         .btn-reset { background: #222; color: #888; font-size: 11px; border: 1px solid #333; margin-top: 20px; }
-        .btn-reset:hover { background: #333; color: white; }
 
         .balance-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
@@ -39,10 +39,20 @@
 
     <div class="container">
         <div class="sidebar">
-            <div class="input-group"><label>Token API</label><input type="password" id="token_input"></div>
-            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_input" value="1.00" step="0.10"></div>
+            <div class="input-group"><label>Token API</label><input type="password" id="token_input" placeholder="Cole seu token aqui"></div>
             
             <div class="input-group">
+                <label>Gerenciamento</label>
+                <select id="tipo_gerenciamento" onchange="ajustarCampos()">
+                    <option value="fixo">Mão Fixa</option>
+                    <option value="martingale">Martingale</option>
+                    <option value="soros">Soros</option>
+                </select>
+            </div>
+
+            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_input" value="1.00" step="0.50"></div>
+            
+            <div id="campo_martingale" class="input-group" style="display:none;">
                 <label>Multiplicador Martingale</label>
                 <input type="number" id="martingale_factor" value="2.1" step="0.1">
             </div>
@@ -52,7 +62,6 @@
             
             <button class="btn btn-auth" onclick="autenticar()">CONECTAR CONTA</button>
             <button id="btnBot" class="btn btn-start" onclick="toggleBot()">LIGAR ROBÔ</button>
-            
             <button class="btn btn-reset" onclick="resetSessao()">RESETAR ESTATÍSTICAS</button>
         </div>
 
@@ -87,11 +96,7 @@
             ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
             ws.onmessage = (e) => {
                 const r = JSON.parse(e.data);
-                if(r.authorize) {
-                    conectado = true;
-                    document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                    ws.send(JSON.stringify({action: "watch"}));
-                }
+                if(r.authorize) { conectado = true; document.getElementById('status_display').innerHTML = "Status: Online 🟢"; ws.send(JSON.stringify({action: "watch"})); }
                 if(r.balance) document.getElementById('balance_display').innerText = r.balance.balance.toFixed(2) + " USD";
                 if(r.tick) {
                     const p = r.tick.quote;
@@ -108,6 +113,11 @@
         }
         conectar();
 
+        function ajustarCampos() {
+            const tipo = document.getElementById('tipo_gerenciamento').value;
+            document.getElementById('campo_martingale').style.display = (tipo === 'martingale') ? 'block' : 'none';
+        }
+
         function autenticar() {
             const t = document.getElementById('token_input').value;
             ws.send(JSON.stringify({action: "auth", token: t}));
@@ -116,25 +126,34 @@
         function fazerEntrada() {
             const sWin = parseFloat(document.getElementById('stopWin_input').value);
             const sLoss = parseFloat(document.getElementById('stopLoss_input').value);
-            if(lucroTotal >= sWin || lucroTotal <= (sLoss * -1)) {
-                escreverLog("META ATINGIDA!"); toggleBot(); return;
-            }
+            if(lucroTotal >= sWin || lucroTotal <= (sLoss * -1)) { escreverLog("META ATINGIDA!"); toggleBot(); return; }
             operando = true;
             ws.send(JSON.stringify({action: "buy", stake: stakeAtual}));
         }
 
         function processarResultado(c) {
             const p = parseFloat(c.profit);
+            const tipo = document.getElementById('tipo_gerenciamento').value;
+            const stakeBase = parseFloat(document.getElementById('stake_input').value);
             lucroTotal += p;
+
             if(p > 0) {
                 wins++;
-                stakeAtual = parseFloat(document.getElementById('stake_input').value);
                 escreverLog(`<span class="win">VITÓRIA: +$${p.toFixed(2)}</span>`);
+                if(tipo === "soros") {
+                    stakeAtual += p; // Próxima entrada = Stake atual + Lucro anterior
+                } else {
+                    stakeAtual = stakeBase; // Volta para o valor inicial no Fixo ou Martingale
+                }
             } else {
                 losses++;
-                const fator = parseFloat(document.getElementById('martingale_factor').value);
-                stakeAtual *= fator;
                 escreverLog(`<span class="loss">DERROTA: -$${Math.abs(p).toFixed(2)}</span>`);
+                if(tipo === "martingale") {
+                    const fator = parseFloat(document.getElementById('martingale_factor').value);
+                    stakeAtual *= fator;
+                } else {
+                    stakeAtual = stakeBase; // Reset no Soros ou Mão Fixa
+                }
             }
             atualizarUI();
             operando = false;
@@ -161,6 +180,7 @@
             const b = document.getElementById('btnBot');
             b.innerText = botLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
             b.classList.toggle('active', botLigado);
+            if(botLigado) stakeAtual = parseFloat(document.getElementById('stake_input').value);
         }
 
         function escreverLog(m) {
