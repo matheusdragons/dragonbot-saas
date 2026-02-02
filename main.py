@@ -15,7 +15,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 async def inicial():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="templates")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
