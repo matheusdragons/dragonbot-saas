@@ -1,106 +1,81 @@
-import sqlite3
 import os
-from flask import Flask, request, render_template, redirect, url_for, session
+import json
+import asyncio
+import websockets
+from fastapi import FastAPI, WebSocket
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, HTMLResponse
 
-app = Flask(__name__)
-app.secret_key = 'dragonbot_secret_key'
+app = FastAPI()
 
-# --- INICIALIZAÇÃO DO BANCO DE DADOS ---
-def init_db():
-    conn = sqlite3.connect('vendas.db')
-    cursor = conn.cursor()
-    # Tabela para logs da Kirvano
-    cursor.execute('''CREATE TABLE IF NOT EXISTS vendas 
-        (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT, status TEXT, valor TEXT, data_hora TEXT)''')
-    # Tabela de usuários do sistema
-    cursor.execute('''CREATE TABLE IF NOT EXISTS usuarios 
-        (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT)''')
-    conn.commit()
-    conn.close()
+# Configuração de pastas
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-init_db()
+# Criar pastas se não existirem
+for path in [TEMPLATES_DIR, STATIC_DIR]:
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-# --- ROTAS DE NAVEGAÇÃO ---
+# Servir arquivos estáticos (CSS, Imagens)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.route('/')
-def home():
-    return render_template('home.html')
+# --- ROTAS DAS PÁGINAS ---
 
-@app.route('/login')
-def login_page():
-    return render_template('login.html')
+@app.get("/")
+async def home():
+    """Página de entrada do SaaS (Home)"""
+    path = os.path.join(TEMPLATES_DIR, "home.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return HTMLResponse("<h1>Página Home em construção...</h1><p>Crie o home.html em templates.</p>")
 
-@app.route('/cadastro')
-def cadastro_page():
-    return render_template('cadastro.html')
+@app.get("/robot")
+async def robot_dashboard():
+    """Área do Robô"""
+    return FileResponse(os.path.join(TEMPLATES_DIR, "index.html"))
 
-@app.route('/acesso-liberado')
-def robo_interface():
-    # Verifica se o usuário está logado na sessão
-    if 'user_email' not in session:
-        return redirect(url_for('login_page'))
-    return render_template('index.html')
+# --- MOTOR DE CONEXÃO (PROXY DERIV) ---
 
-# --- LÓGICA DE CADASTRO E LOGIN ---
-
-@app.route('/registrar_usuario', methods=['POST'])
-def registrar():
-    email = request.form.get('email')
-    senha = request.form.get('password')
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    
+    deriv_url = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+    
     try:
-        conn = sqlite3.connect('vendas.db')
-        c = conn.cursor()
-        c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email, senha))
-        conn.commit()
-        conn.close()
-        return "Conta criada! <a href='/login'>Clique aqui para logar</a>"
-    except:
-        return "Erro: Este e-mail já existe.", 400
+        async with websockets.connect(deriv_url) as deriv_ws:
+            # Escuta Deriv -> Navegador
+            async def forward_to_client():
+                try:
+                    async for message in deriv_ws:
+                        await websocket.send_text(message)
+                except: pass
 
-@app.route('/auth', methods=['POST'])
-def auth():
-    email = request.form.get('email')
-    senha = request.form.get('password')
-    conn = sqlite3.connect('vendas.db')
-    c = conn.cursor()
-    # Validação de credenciais
-    c.execute('SELECT * FROM usuarios WHERE email = ? AND password = ?', (email, senha))
-    user = c.fetchone()
-    conn.close()
+            asyncio.create_task(forward_to_client())
 
-    if user:
-        session['user_email'] = email
-        return redirect(url_for('robo_interface'))
-    return "Login inválido!", 401
-
-# --- WEBHOOK DA KIRVANO ---
-
-@app.route('/webhook-kirvano', methods=['POST'])
-def webhook():
-    d = request.get_json()
-    if d:
-        cli = d.get('customer', {})
-        email_cliente = cli.get('email')
-        status_venda = d.get('status')
-        
-        conn = sqlite3.connect('vendas.db')
-        c = conn.cursor()
-        
-        # Registra a venda
-        c.execute('INSERT INTO vendas (nome, email, status, valor, data_hora) VALUES (?, ?, ?, ?, ?)',
-                  (cli.get('name'), email_cliente, status_venda, d.get('total_price'), d.get('created_at')))
-        
-        # Cria usuário automático para vendas aprovadas
-        if status_venda == 'approved':
-            try:
-                c.execute('INSERT INTO usuarios (email, password) VALUES (?, ?)', (email_cliente, "mudar123"))
-            except sqlite3.IntegrityError:
-                pass
-        
-        conn.commit()
-        conn.close()
-    return "OK", 200
-
-if __name__ == '__main__':
-    porta = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=porta)
+            # Escuta Navegador -> Deriv
+            while True:
+                data = await websocket.receive_text()
+                msg = json.loads(data)
+                
+                if msg.get("action") == "auth":
+                    await deriv_ws.send(json.dumps({"authorize": msg["token"]}))
+                    await deriv_ws.send(json.dumps({"balance": 1, "subscribe": 1}))
+                
+                elif msg.get("action") == "watch":
+                    await deriv_ws.send(json.dumps({"ticks": "R_100", "subscribe": 1}))
+                    await deriv_ws.send(json.dumps({"proposal_open_contract": 1, "subscribe": 1}))
+                
+                elif msg.get("action") == "buy":
+                    await deriv_ws.send(json.dumps({
+                        "buy": 1, "price": float(msg["stake"]),
+                        "parameters": {
+                            "amount": float(msg["stake"]), "basis": "stake",
+                            "contract_type": "DIGITDIFF", "currency": "USD",
+                            "duration": 1, "duration_unit": "t", "symbol": "R_100", "barrier": "7"
+                        }
+                    }))
+    except Exception as e:
+        print(f"Erro de conexão: {e}")
