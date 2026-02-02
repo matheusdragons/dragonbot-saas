@@ -2,77 +2,74 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>DragonBot - Professional Dashboard</title>
+    <title>DragonBot - Dashboard Pro</title>
     <style>
         :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
         body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; }
         .header { height: 70px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; border-bottom: 1px solid #2d333f; }
         .container { display: flex; gap: 20px; max-width: 1300px; margin: 20px auto; padding: 0 20px; }
-        .sidebar { width: 340px; background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #2d333f; height: fit-content; }
+        .sidebar { width: 340px; background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #2d333f; }
         .main { flex: 1; background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #2d333f; text-align: center; }
         
-        /* Inputs e Layout */
         .input-group { margin-bottom: 15px; text-align: left; }
         label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
         input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
         
-        /* Stats */
-        .balance-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; border: 1px solid #333; }
-        
-        /* Botões */
         .btn { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; transition: 0.3s; }
         .btn-auth { background: var(--primary); color: #000; }
         .btn-start { background: var(--success); color: #000; }
         .btn-start.active { background: var(--danger); color: white; }
-        .btn-reset { background: #333; color: #ccc; font-size: 10px; margin-top: 20px; }
-        .btn-reset:hover { background: #444; color: #fff; }
+        .btn-reset { background: #222; color: #888; font-size: 11px; border: 1px solid #333; margin-top: 20px; }
+        .btn-reset:hover { background: #333; color: white; }
 
+        .balance-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; border: 1px solid #333; }
+        
         #preco { font-size: 5em; font-weight: 900; color: var(--success); font-family: monospace; margin: 20px 0; }
         #log { background: #000; padding: 15px; height: 180px; overflow-y: auto; border-radius: 10px; font-size: 12px; font-family: monospace; text-align: left; border: 1px solid #222; }
-        .win { color: var(--success) !important; font-weight: bold; }
-        .loss { color: var(--danger) !important; font-weight: bold; }
+        .win { color: var(--success) !important; } .loss { color: var(--danger) !important; }
     </style>
 </head>
 <body>
     <header class="header">
-        <img src="/static/logo.jpg" alt="Logo" style="height:50px" onerror="this.src='https://via.placeholder.com/150x50?text=DragonBot'">
+        <img src="/static/logo.jpg" alt="Logo" style="height:45px" onerror="this.src='https://via.placeholder.com/150x50?text=DragonBot'">
         <div id="status_display">Status: Servidor OK 🔵</div>
     </header>
 
     <div class="container">
         <div class="sidebar">
-            <div class="input-group"><label>Token API</label><input type="password" id="token_input" placeholder="Insira seu Token"></div>
-            <div class="input-group"><label>Stake ($)</label><input type="number" id="stake_input" value="1.00"></div>
-            <div class="input-group"><label>Stop Win</label><input type="number" id="stopWin_input" value="5.00"></div>
-            <div class="input-group"><label>Stop Loss</label><input type="number" id="stopLoss_input" value="10.00"></div>
+            <div class="input-group"><label>Token API</label><input type="password" id="token_input"></div>
+            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_input" value="1.00" step="0.10"></div>
+            
             <div class="input-group">
-                <label>Estratégia</label>
-                <select id="estrategia_input">
-                    <option value="martingale">Martingale (2.1x)</option>
-                    <option value="fixo">Mão Fixa</option>
-                </select>
+                <label>Multiplicador Martingale</label>
+                <input type="number" id="martingale_factor" value="2.1" step="0.1">
             </div>
-            <button class="btn btn-auth" onclick="autenticar()">AUTENTICAR CONTA</button>
+
+            <div class="input-group"><label>Stop Win ($)</label><input type="number" id="stopWin_input" value="5.00"></div>
+            <div class="input-group"><label>Stop Loss ($)</label><input type="number" id="stopLoss_input" value="10.00"></div>
+            
+            <button class="btn btn-auth" onclick="autenticar()">CONECTAR CONTA</button>
             <button id="btnBot" class="btn btn-start" onclick="toggleBot()">LIGAR ROBÔ</button>
-            <button class="btn btn-reset" onclick="resetarEstatisticas()">RESETAR ESTATÍSTICAS / SESSÃO</button>
+            
+            <button class="btn btn-reset" onclick="resetSessao()">RESETAR ESTATÍSTICAS</button>
         </div>
 
         <div class="main">
             <div class="balance-container">
-                <small style="color: #888;">SALDO DISPONÍVEL</small>
-                <div id="balance_display" style="font-size: 36px; font-weight: bold; color: var(--primary);">0.00 USD</div>
+                <small style="color:#888">SALDO EM CONTA</small>
+                <div id="balance_display" style="font-size:32px; font-weight:bold; color:var(--primary);">0.00 USD</div>
             </div>
 
             <div class="stats-grid">
-                <div class="stat-card"><div>WINS</div><div id="wins_display" class="win" style="font-size: 24px;">0</div></div>
-                <div class="stat-card"><div>LOSSES</div><div id="losses_display" class="loss" style="font-size: 24px;">0</div></div>
+                <div class="stat-card">WINS<br><span id="wins_display" class="win" style="font-size:24px;">0</span></div>
+                <div class="stat-card">LOSSES<br><span id="losses_display" class="loss" style="font-size:24px;">0</span></div>
             </div>
 
-            <div class="stat-card" style="margin-bottom: 20px;">
-                <div>LUCRO ACUMULADO</div>
-                <div id="profit_display" style="font-size: 30px; font-weight: bold;">0.00</div>
+            <div class="stat-card" style="margin-bottom:20px;">
+                LUCRO ACUMULADO<br>
+                <span id="profit_display" style="font-size:28px; font-weight:bold;">0.00</span>
             </div>
 
             <div id="preco">0.0000</div>
@@ -83,120 +80,92 @@
     <script>
         let ws;
         let conectado = false, botLigado = false, operando = false;
-        let wins = 0, losses = 0, lucroTotal = 0.0, stakeInicial = 1.0, stakeAtual = 1.0;
-        let ultimoContratoId = null;
+        let wins = 0, losses = 0, lucroTotal = 0.0, stakeAtual = 1.0, ultimoId = null;
 
-        function conectarWS() {
+        function conectar() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-            ws.onopen = () => { document.getElementById('status_display').innerHTML = "Status: Conectado 🔵"; };
-
             ws.onmessage = (e) => {
-                const res = JSON.parse(e.data);
-                
-                if (res.authorize) {
+                const r = JSON.parse(e.data);
+                if(r.authorize) {
                     conectado = true;
                     document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                    escreverLog("CONTA AUTORIZADA COM SUCESSO!");
                     ws.send(JSON.stringify({action: "watch"}));
                 }
-
-                if (res.balance) {
-                    document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " USD";
+                if(r.balance) document.getElementById('balance_display').innerText = r.balance.balance.toFixed(2) + " USD";
+                if(r.tick) {
+                    const p = r.tick.quote;
+                    document.getElementById('preco').innerText = p;
+                    if(botLigado && !operando && p.toString().slice(-1) === "7") fazerEntrada();
                 }
-
-                if (res.tick) {
-                    const preco = res.tick.quote;
-                    document.getElementById('preco').innerText = preco;
-                    // Lógica de entrada: Dígito final 7
-                    if (botLigado && !operando && preco.toString().slice(-1) === "7") {
-                        fazerEntrada();
-                    }
-                }
-
-                if (res.proposal_open_contract && res.proposal_open_contract.is_completed) {
-                    const contrato = res.proposal_open_contract;
-                    if (contrato.contract_id !== ultimoContratoId) {
-                        ultimoContratoId = contrato.contract_id;
-                        processarResultado(contrato);
+                if(r.proposal_open_contract && r.proposal_open_contract.is_completed) {
+                    if(r.proposal_open_contract.contract_id !== ultimoId) {
+                        ultimoId = r.proposal_open_contract.contract_id;
+                        processarResultado(r.proposal_open_contract);
                     }
                 }
             };
         }
-
-        conectarWS();
+        conectar();
 
         function autenticar() {
-            const token = document.getElementById('token_input').value;
-            if(!token) return alert("Insira o Token!");
-            ws.send(JSON.stringify({action: "auth", token: token}));
+            const t = document.getElementById('token_input').value;
+            ws.send(JSON.stringify({action: "auth", token: t}));
         }
 
         function fazerEntrada() {
             const sWin = parseFloat(document.getElementById('stopWin_input').value);
             const sLoss = parseFloat(document.getElementById('stopLoss_input').value);
-
-            if (lucroTotal >= sWin || lucroTotal <= (sLoss * -1)) {
-                escreverLog("META ATINGIDA! ROBÔ PARADO.");
-                toggleBot();
-                return;
+            if(lucroTotal >= sWin || lucroTotal <= (sLoss * -1)) {
+                escreverLog("META ATINGIDA!"); toggleBot(); return;
             }
-
             operando = true;
             ws.send(JSON.stringify({action: "buy", stake: stakeAtual}));
-            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)}`);
         }
 
         function processarResultado(c) {
             const p = parseFloat(c.profit);
             lucroTotal += p;
-
-            if (p > 0) {
+            if(p > 0) {
                 wins++;
-                escreverLog(`<span class="win">VITÓRIA: +$${p.toFixed(2)}</span>`);
                 stakeAtual = parseFloat(document.getElementById('stake_input').value);
+                escreverLog(`<span class="win">VITÓRIA: +$${p.toFixed(2)}</span>`);
             } else {
                 losses++;
+                const fator = parseFloat(document.getElementById('martingale_factor').value);
+                stakeAtual *= fator;
                 escreverLog(`<span class="loss">DERROTA: -$${Math.abs(p).toFixed(2)}</span>`);
-                if (document.getElementById('estrategia_input').value === "martingale") {
-                    stakeAtual *= 2.1;
-                }
             }
-            
-            atualizarPainel();
+            atualizarUI();
             operando = false;
         }
 
-        function atualizarPainel() {
+        function atualizarUI() {
             document.getElementById('wins_display').innerText = wins;
             document.getElementById('losses_display').innerText = losses;
-            const profDisp = document.getElementById('profit_display');
-            profDisp.innerText = lucroTotal.toFixed(2);
-            profDisp.className = lucroTotal >= 0 ? "win" : "loss";
+            const pd = document.getElementById('profit_display');
+            pd.innerText = lucroTotal.toFixed(2);
+            pd.style.color = lucroTotal >= 0 ? "var(--success)" : "var(--danger)";
+        }
+
+        function resetSessao() {
+            wins = 0; losses = 0; lucroTotal = 0.0;
+            stakeAtual = parseFloat(document.getElementById('stake_input').value);
+            atualizarUI();
+            escreverLog("SESSÃO RESETADA.");
         }
 
         function toggleBot() {
-            if (!conectado) return alert("Autentique primeiro!");
+            if(!conectado) return alert("Conecte primeiro!");
             botLigado = !botLigado;
-            const btn = document.getElementById('btnBot');
-            btn.innerText = botLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
-            btn.classList.toggle('active', botLigado);
-            if (botLigado) {
-                stakeAtual = parseFloat(document.getElementById('stake_input').value);
-                operando = false;
-            }
-        }
-
-        function resetarEstatisticas() {
-            wins = 0; losses = 0; lucroTotal = 0.0;
-            atualizarPainel();
-            escreverLog("Estatísticas resetadas.");
+            const b = document.getElementById('btnBot');
+            b.innerText = botLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
+            b.classList.toggle('active', botLigado);
         }
 
         function escreverLog(m) {
-            const log = document.getElementById('log');
-            log.innerHTML = `<div>> ${m}</div>` + log.innerHTML;
+            const l = document.getElementById('log');
+            l.innerHTML = `<div>> ${m}</div>` + l.innerHTML;
         }
     </script>
 </body>
