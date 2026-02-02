@@ -1,97 +1,138 @@
-<script>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>SaaS Bot Pro - Dashboard Trader</title>
+    <style>
+        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-bottom: 1px solid #2d333f; }
+        .logo-container img { height: 60px; }
+        .container { display: flex; gap: 20px; max-width: 1250px; margin: 20px auto; padding: 0 20px; }
+        .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #2d333f; }
+        .main-panel { flex: 1; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d333f; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; }
+        .saldo-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; text-align: center; }
+        .saldo-valor { font-size: 36px; font-weight: bold; color: var(--primary); }
+        button { width: 100%; padding: 16px; font-weight: bold; cursor: pointer; border-radius: 10px; border: none; text-transform: uppercase; margin-top: 10px; }
+        .btn-verde { background: var(--success); color: #000; }
+        .btn-auto { background: #ffaa00; color: white; }
+        .btn-auto.ligado { background: var(--danger); }
+        #preco { font-size: 5em; color: var(--success); text-align: center; font-family: monospace; margin: 20px 0; }
+        #log { background: #000; padding: 15px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 12px; border: 1px solid #222; margin-top: 20px; }
+        .win { color: var(--success); }
+        .loss { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo-container"><img src="/static/logo.jpg" alt="Logo"></div>
+        <div id="status_display">Status: Desconectado 🔴</div>
+    </header>
+
+    <div class="container">
+        <div class="sidebar">
+            <h3>Configurações</h3>
+            <div class="input-group">
+                <label>Token API Deriv</label>
+                <input type="password" id="token_input" placeholder="Insira seu token">
+            </div>
+            <div class="input-group">
+                <label>Entrada (Stake)</label>
+                <input type="number" id="stake_input" value="1.00">
+            </div>
+            <div class="input-group">
+                <label>Estratégia</label>
+                <select id="estrategia_input">
+                    <option value="martingale">Martingale</option>
+                    <option value="none">Mão Fixa</option>
+                </select>
+            </div>
+            <button class="btn-verde" onclick="conectarDeriv()">CONECTAR CONTA</button>
+            <button id="btnAuto" class="btn-auto" onclick="toggleRobo()">LIGAR ROBÔ</button>
+        </div>
+
+        <div class="main-panel">
+            <div class="saldo-container">
+                <div id="balance_display" class="saldo-valor">0.00 USD</div>
+            </div>
+            <div id="preco">0.0000</div>
+            <div id="log">Aguardando conexão...</div>
+        </div>
+    </div>
+
+    <script>
         let ws;
-        let roboLigado = false, conectado = false;
-        let operacaoEmCurso = false; 
-        let wins = 0, losses = 0, lucroTotal = 0.0;
-        let historicoContratos = new Set();
+        let conectado = false, roboLigado = false, operacaoEmCurso = false;
         let stakeAtual = 1.0;
 
-        // Inicia a conexão DIRETA com a Deriv
-        function initWS() {
-            // Usamos o protocolo WSS (seguro) e o App ID padrão
+        function conectarDeriv() {
+            const token = document.getElementById('token_input').value.trim();
+            if (!token) return alert("Por favor, insira o token!");
+
+            // CONEXÃO DIRETA COM A DERIV (WSS SEGURO)
             ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-            
+
             ws.onopen = () => {
-                escreverLog("Conectado ao servidor da Deriv. Aguardando Token...");
+                ws.send(JSON.stringify({ "authorize": token }));
             };
 
-            ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
-            
-            ws.onclose = () => {
-                conectado = false;
-                document.getElementById('status_display').innerHTML = "Status: Desconectado 🔴";
-                setTimeout(initWS, 5000); // Tentativa de reconexão
+            ws.onmessage = (msg) => {
+                const res = JSON.parse(msg.data);
+                
+                if (res.error) {
+                    escreverLog(`<span class="loss">Erro: ${res.error.message}</span>`);
+                    return;
+                }
+
+                if (res.msg_type === "authorize") {
+                    conectado = true;
+                    document.getElementById('status_display').innerHTML = "Status: Online 🟢";
+                    escreverLog("CONTA AUTORIZADA!");
+                    ws.send(JSON.stringify({ "balance": 1, "subscribe": 1 }));
+                    ws.send(JSON.stringify({ "ticks": "R_100", "subscribe": 1 }));
+                    ws.send(JSON.stringify({ "proposal_open_contract": 1, "subscribe": 1 }));
+                }
+
+                if (res.balance) {
+                    document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " USD";
+                }
+
+                if (res.tick) {
+                    const preco = res.tick.quote;
+                    document.getElementById('preco').innerText = preco;
+                    // Lógica Dígito 7
+                    if (roboLigado && !operacaoEmCurso && preco.toString().slice(-1) === "7") {
+                        fazerEntrada();
+                    }
+                }
+
+                if (res.proposal_open_contract) {
+                    const c = res.proposal_open_contract;
+                    if (c.is_completed) {
+                        const lucro = parseFloat(c.profit);
+                        escreverLog(lucro > 0 ? `<span class="win">WIN: +$${lucro}</span>` : `<span class="loss">LOSS: $${lucro}</span>`);
+                        operacaoEmCurso = false;
+                        // Ajuste de Martingale simplificado
+                        if (lucro < 0 && document.getElementById('estrategia_input').value === 'martingale') {
+                            stakeAtual *= 2.1;
+                        } else {
+                            stakeAtual = parseFloat(document.getElementById('stake_input').value);
+                        }
+                    }
+                }
             };
         }
-        initWS();
 
-        function handleMessage(res) {
-            if (res.error) {
-                if (res.error.code === 'AlreadySubscribed') return;
-                escreverLog(`<span class="loss">Erro: ${res.error.message}</span>`);
-                operacaoEmCurso = false;
-                return;
-            }
-
-            // Resposta da Autenticação
-            if (res.msg_type === "authorize") {
-                conectado = true;
-                document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                escreverLog("CONTA CONECTADA COM SUCESSO!");
-                
-                // Subscreve nos fluxos de dados necessários
-                ws.send(JSON.stringify({"balance": 1, "subscribe": 1}));
-                ws.send(JSON.stringify({"ticks": "R_100", "subscribe": 1}));
-                ws.send(JSON.stringify({"proposal_open_contract": 1, "subscribe": 1}));
-            }
-
-            if (res.balance) {
-                document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " " + res.balance.currency;
-            }
-
-            if (res.tick) {
-                let p = res.tick.quote;
-                document.getElementById('preco').innerText = p;
-                
-                // Estratégia do Dígito 7 (vinda do seu main.py original)
-                if (roboLigado && !operacaoEmCurso && p.toString().slice(-1) === "7") {
-                    executarCompra();
-                }
-            }
-
-            if (res.proposal_open_contract) {
-                let c = res.proposal_open_contract;
-                if ((c.is_completed || c.status !== "open") && !historicoContratos.has(c.contract_id)) {
-                    historicoContratos.add(c.contract_id);
-                    processarResultado(c);
-                    operacaoEmCurso = false; 
-                }
-            }
-        }
-
-        function conectarAgora() {
-            let tk = document.getElementById('token_input').value.trim();
-            if(!tk) return alert("Insira seu Token!");
-            // Envia o token para a Deriv
-            ws.send(JSON.stringify({"authorize": tk}));
-        }
-
-        function executarCompra() {
-            let winM = parseFloat(document.getElementById('stopWin_input').value);
-            let lossM = parseFloat(document.getElementById('stopLoss_input').value);
-
-            if (lucroTotal >= winM || lucroTotal <= (lossM * -1)) {
-                exibirAlerta(lucroTotal >= winM ? 'win' : 'loss', lucroTotal >= winM ? '🏆 META ALCANÇADA!' : '🚫 STOP LOSS ATINGIDO!');
-                pararBot(); return;
-            }
-
-            operacaoEmCurso = true; 
-            // Payload de compra seguindo o padrão DIGITDIFF (Igual ao seu main.py)
+        function fazerEntrada() {
+            operacaoEmCurso = true;
             ws.send(JSON.stringify({
                 "buy": 1,
-                "price": parseFloat(stakeAtual),
+                "price": stakeAtual,
                 "parameters": {
-                    "amount": parseFloat(stakeAtual),
+                    "amount": stakeAtual,
                     "basis": "stake",
                     "contract_type": "DIGITDIFF",
                     "currency": "USD",
@@ -101,81 +142,25 @@
                     "barrier": "7"
                 }
             }));
-            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)}`);
-        }
-
-        function processarResultado(c) {
-            let p = parseFloat(c.profit) || 0;
-            let inicial = parseFloat(document.getElementById('stake_input').value);
-            let mult = parseFloat(document.getElementById('mult_input').value) || 2.1;
-            let est = document.getElementById('estrategia_input').value;
-
-            if (p > 0) {
-                wins++;
-                escreverLog(`<span class="win">💰 WIN: +$${p.toFixed(2)}</span>`);
-                stakeAtual = (est === "soros") ? Number((inicial + p).toFixed(2)) : inicial;
-            } else {
-                losses++;
-                escreverLog(`<span class="loss">❌ LOSS: -$${Math.abs(p).toFixed(2)}</span>`);
-                if (est === "martingale") {
-                    stakeAtual = Number((stakeAtual * mult).toFixed(2));
-                } else {
-                    stakeAtual = inicial;
-                }
-            }
-            lucroTotal = Number((lucroTotal + p).toFixed(2));
-            atualizarPainel();
-        }
-
-        function atualizarPainel() {
-            document.getElementById('wins_display').innerText = wins;
-            document.getElementById('losses_display').innerText = losses;
-            let prof = document.getElementById('profit_display');
-            prof.innerText = lucroTotal.toFixed(2);
-            prof.className = lucroTotal >= 0 ? "win" : "loss";
-        }
-
-        function exibirAlerta(tipo, msg) {
-            const el = document.getElementById('alerta_resultado');
-            el.style.display = 'block';
-            el.innerText = msg;
-            el.style.background = tipo === 'win' ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)';
-            el.style.border = `2px solid ${tipo === 'win' ? 'var(--success)' : 'var(--danger)'}`;
-            el.style.color = tipo === 'win' ? 'var(--success)' : 'var(--danger)';
+            escreverLog(`Ordem enviada: $${stakeAtual.toFixed(2)}`);
         }
 
         function toggleRobo() {
-            if(!conectado) return alert("Conecte a conta primeiro!");
+            if (!conectado) return alert("Conecte a conta primeiro!");
             roboLigado = !roboLigado;
-            let btn = document.getElementById('btnAuto');
-            btn.innerText = roboLigado ? "PARAR ROBÔ" : "LIGAR MODO AUTOMÁTICO";
-            btn.classList.toggle('ligado', roboLigado);
-            if(roboLigado) {
+            const btn = document.getElementById('btnAuto');
+            btn.innerText = roboLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
+            btn.classList.toggle('ligado');
+            if (roboLigado) {
                 stakeAtual = parseFloat(document.getElementById('stake_input').value);
-                operacaoEmCurso = false;
-                document.getElementById('alerta_resultado').style.display = 'none';
-                escreverLog("MODO AUTOMÁTICO ATIVADO");
+                escreverLog("ROBÔ ATIVADO");
             }
         }
 
-        function resetarTudo() {
-            if(roboLigado) return alert("Pare o robô antes.");
-            wins = 0; losses = 0; lucroTotal = 0.0;
-            historicoContratos.clear();
-            atualizarPainel();
-            escreverLog("Sessão Reiniciada.");
-        }
-
-        function pararBot() {
-            roboLigado = false;
-            let btn = document.getElementById('btnAuto');
-            btn.innerText = "LIGAR MODO AUTOMÁTICO";
-            btn.classList.remove('ligado');
-        }
-
         function escreverLog(t) {
-            const l = document.getElementById('log');
-            const data = new Date().toLocaleTimeString();
-            l.innerHTML = `<div><small style="color:#666">[${data}]</small> > ${t}</div>` + l.innerHTML;
+            const log = document.getElementById('log');
+            log.innerHTML = `<div>> ${t}</div>` + log.innerHTML;
         }
     </script>
+</body>
+</html>
