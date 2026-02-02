@@ -5,186 +5,146 @@
     <title>SaaS Bot Pro - Dashboard</title>
     <style>
         :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-bottom: 1px solid #2d333f; }
-        .container { display: flex; gap: 20px; max-width: 1250px; margin: 20px auto; padding: 0 20px; }
-        .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #2d333f; height: fit-content; }
-        .main-panel { flex: 1; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d333f; }
-        .input-group { margin-bottom: 15px; text-align: left; }
-        label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
-        .saldo-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; text-align: center; }
-        .saldo-valor { font-size: 36px; font-weight: bold; color: var(--primary); font-family: monospace; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; border: 1px solid #333; text-align: center; }
-        .win { color: var(--success) !important; }
-        .loss { color: var(--danger) !important; }
-        button { width: 100%; padding: 16px; font-weight: bold; cursor: pointer; border-radius: 10px; margin-top: 10px; border: none; text-transform: uppercase; transition: 0.3s; }
-        .btn-verde { background: var(--success); color: #000; }
-        .btn-auto { background: #ffaa00; color: white; }
-        .btn-auto.ligado { background: var(--danger); }
-        #preco { font-size: 5em; color: var(--success); margin: 20px 0; font-weight: 900; font-family: monospace; text-align: center; }
-        #log { background: #000; border-radius: 10px; padding: 15px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 12px; border: 1px solid #222; margin-top: 20px; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0; }
+        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; border-bottom: 1px solid #2d333f; }
+        .container { display: flex; gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .sidebar { width: 320px; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #2d333f; }
+        .main-panel { flex: 1; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #2d333f; text-align: center; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        .btn-auth { background: var(--primary); color: #000; }
+        .btn-bot { background: #ffaa00; color: #000; }
+        .btn-bot.active { background: var(--danger); color: #fff; }
+        #preco { font-size: 4em; color: var(--success); font-family: monospace; margin: 20px 0; }
+        #log { background: #000; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 11px; margin-top: 15px; text-align: left; border: 1px solid #222; }
+        .win { color: var(--success); } .loss { color: var(--danger); }
     </style>
 </head>
 <body>
     <header class="header">
-        <img src="/static/logo.jpg" alt="Logo" style="height:60px" onerror="this.src='https://via.placeholder.com/150x50?text=DragonBot'">
-        <div id="status_display">Status: Conectando... 🟡</div>
+        <img src="/static/logo.jpg" alt="Logo" style="height:50px" onerror="this.src='https://via.placeholder.com/150x50?text=DragonBot'">
+        <div id="status">Servidor: Desconectado 🔴</div>
     </header>
 
     <div class="container">
         <div class="sidebar">
-            <div class="input-group"><label>Token API</label><input type="password" id="token_input" placeholder="Insira o Token"></div>
-            <div class="input-group"><label>Stake ($)</label><input type="number" id="stake_input" value="1.00"></div>
-            <div class="input-group"><label>Stop Win</label><input type="number" id="stopWin_input" value="5.00"></div>
-            <div class="input-group"><label>Stop Loss</label><input type="number" id="stopLoss_input" value="10.00"></div>
+            <div class="input-group"><label>Token Deriv</label><input type="password" id="token"></div>
+            <div class="input-group"><label>Stake ($)</label><input type="number" id="stake" value="1.00"></div>
             <div class="input-group">
                 <label>Estratégia</label>
-                <select id="estrategia_input">
-                    <option value="martingale">Martingale</option>
-                    <option value="none">Mão Fixa</option>
-                </select>
+                <select id="estrategia"><option value="martingale">Martingale</option><option value="fixo">Mão Fixa</option></select>
             </div>
-            <button class="btn-verde" onclick="conectarAgora()">AUTENTICAR CONTA</button>
-            <button id="btnAuto" class="btn-auto" onclick="toggleRobo()">LIGAR ROBÔ</button>
-            <button onclick="resetarSessao()" style="background:#333; color:white; font-size:10px;">RESETAR ESTATÍSTICAS</button>
+            <button class="btn btn-auth" onclick="autenticar()">CONECTAR CONTA</button>
+            <button id="btnBot" class="btn btn-bot" onclick="toggleBot()">LIGAR ROBÔ</button>
         </div>
 
         <div class="main-panel">
-            <div class="saldo-container">
-                <div style="font-size: 11px; color: #888;">SALDO EM CONTA</div>
-                <div id="balance_display" class="saldo-valor">0.00 USD</div>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card"><div>WINS</div><div id="wins_display" class="win" style="font-size: 24px; font-weight: bold;">0</div></div>
-                <div class="stat-card"><div>LOSSES</div><div id="losses_display" class="loss" style="font-size: 24px; font-weight: bold;">0</div></div>
-            </div>
-            <div class="stat-card" style="margin-bottom: 20px;">
-                <div>LUCRO TOTAL</div>
-                <div id="profit_display" style="font-size: 30px; font-weight: bold;">0.00</div>
+            <div style="background:#000; padding:15px; border-radius:10px; border:1px solid var(--primary);">
+                <small>SALDO ATUAL</small>
+                <div id="balance" style="font-size:24px; font-weight:bold; color:var(--primary);">0.00 USD</div>
             </div>
             <div id="preco">0.0000</div>
+            <div style="display:flex; justify-content:space-around;">
+                <div>WINS: <span id="wins" class="win">0</span></div>
+                <div>LOSSES: <span id="losses" class="loss">0</span></div>
+                <div>LUCRO: <span id="profit">0.00</span></div>
+            </div>
             <div id="log">Aguardando servidor...</div>
         </div>
     </div>
 
     <script>
         let ws;
-        let conectado = false, roboLigado = false, operacaoEmCurso = false;
-        let wins = 0, losses = 0, lucroTotal = 0.0, stakeAtual = 1.0;
-        let ultimoContratoId = null;
+        let conectado = false, botLigado = false, operando = false;
+        let wins = 0, losses = 0, lucro = 0.0, stakeAtual = 1.0;
+        let ultimoId = null;
 
-        function conectarWS() {
+        function conectar() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            ws = new WebSocket(`${protocol}//${host}/ws`);
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
             ws.onopen = () => {
-                document.getElementById('status_display').innerHTML = "Status: Servidor OK 🔵";
-                escreverLog("Conectado ao servidor. Insira o token.");
+                document.getElementById('status').innerHTML = "Servidor: Online 🟢";
+                escreverLog("Conectado ao servidor SaaS.");
             };
 
             ws.onmessage = (e) => {
-                const res = JSON.parse(e.data);
-                
-                if (res.msg_type === "authorize" || res.authorize) {
+                const d = JSON.parse(e.data);
+
+                if(d.authorize) {
                     conectado = true;
-                    document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                    escreverLog("CONTA AUTORIZADA!");
+                    escreverLog("CONTA AUTORIZADA!", "#00ff88");
                     ws.send(JSON.stringify({action: "watch"}));
                 }
 
-                if (res.balance) {
-                    document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " USD";
-                }
+                if(d.balance) document.getElementById('balance').innerText = d.balance.balance.toFixed(2) + " USD";
 
-                if (res.tick) {
-                    const p = res.tick.quote;
+                if(d.tick) {
+                    const p = d.tick.quote;
                     document.getElementById('preco').innerText = p;
-                    if (roboLigado && !operacaoEmCurso && p.toString().slice(-1) === "7") {
-                        fazerEntrada();
-                    }
+                    if(botLigado && !operando && p.toString().slice(-1) === "7") fazerEntrada();
                 }
 
-                if (res.proposal_open_contract && res.proposal_open_contract.is_completed) {
-                    const c = res.proposal_open_contract;
-                    if (c.contract_id !== ultimoContratoId) {
-                        ultimoContratoId = c.contract_id;
+                if(d.proposal_open_contract && d.proposal_open_contract.is_completed) {
+                    const c = d.proposal_open_contract;
+                    if(c.contract_id !== ultimoId) {
+                        ultimoId = c.contract_id;
                         processarResultado(c);
                     }
                 }
             };
-
-            ws.onclose = () => {
-                document.getElementById('status_display').innerHTML = "Status: Reconectando... 🔴";
-                setTimeout(conectarWS, 2000);
-            };
         }
 
-        conectarWS();
+        conectar();
 
-        function conectarAgora() {
-            const token = document.getElementById('token_input').value;
-            if (!token) return alert("Token necessário!");
-            ws.send(JSON.stringify({action: "auth", token: token}));
+        function autenticar() {
+            const t = document.getElementById('token').value;
+            ws.send(JSON.stringify({action: "auth", token: t}));
         }
 
         function fazerEntrada() {
-            operacaoEmCurso = true;
+            operando = true;
             ws.send(JSON.stringify({action: "buy", stake: stakeAtual}));
-            escreverLog(`Entrada: $${stakeAtual.toFixed(2)}`);
+            escreverLog(`Entrada enviada: $${stakeAtual}`);
         }
 
         function processarResultado(c) {
             const p = parseFloat(c.profit);
-            const inicial = parseFloat(document.getElementById('stake_input').value);
+            const base = parseFloat(document.getElementById('stake').value);
             
-            if (p > 0) {
+            if(p > 0) {
                 wins++;
-                escreverLog(`<span class="win">GANHOU: +$${p.toFixed(2)}</span>`);
-                stakeAtual = inicial;
+                escreverLog(`GANHOU: +$${p}`, "#00ff88");
+                stakeAtual = base;
             } else {
                 losses++;
-                escreverLog(`<span class="loss">PERDEU: -$${Math.abs(p).toFixed(2)}</span>`);
-                if (document.getElementById('estrategia_input').value === "martingale") {
-                    stakeAtual = Number((stakeAtual * 2.1).toFixed(2));
-                }
+                escreverLog(`PERDEU: -$${Math.abs(p)}`, "#ff4444");
+                if(document.getElementById('estrategia').value === "martingale") stakeAtual *= 2.1;
             }
-            lucroTotal += p;
-            atualizarPainel();
-            operacaoEmCurso = false;
+            lucro += p;
+            document.getElementById('wins').innerText = wins;
+            document.getElementById('losses').innerText = losses;
+            document.getElementById('profit').innerText = lucro.toFixed(2);
+            operando = false;
         }
 
-        function atualizarPainel() {
-            document.getElementById('wins_display').innerText = wins;
-            document.getElementById('losses_display').innerText = losses;
-            const prof = document.getElementById('profit_display');
-            prof.innerText = lucroTotal.toFixed(2);
-            prof.className = lucroTotal >= 0 ? "win" : "loss";
-        }
-
-        function toggleRobo() {
-            if (!conectado) return alert("Autentique a conta primeiro!");
-            roboLigado = !roboLigado;
-            const btn = document.getElementById('btnAuto');
-            btn.innerText = roboLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
-            btn.classList.toggle('ligado', roboLigado);
-            if (roboLigado) {
-                stakeAtual = parseFloat(document.getElementById('stake_input').value);
-                operacaoEmCurso = false;
+        function toggleBot() {
+            if(!conectado) return alert("Conecte primeiro!");
+            botLigado = !botLigado;
+            const b = document.getElementById('btnBot');
+            b.innerText = botLigado ? "PARAR ROBÔ" : "LIGAR ROBÔ";
+            b.classList.toggle('active', botLigado);
+            if(botLigado) {
+                stakeAtual = parseFloat(document.getElementById('stake').value);
+                operando = false;
             }
         }
 
-        function escreverLog(t) {
-            const log = document.getElementById('log');
-            log.innerHTML = `<div>> ${t}</div>` + log.innerHTML;
-        }
-
-        function resetarSessao() {
-            wins = 0; losses = 0; lucroTotal = 0.0;
-            atualizarPainel();
-            escreverLog("Estatísticas resetadas.");
+        function escreverLog(m, c="white") {
+            const l = document.getElementById('log');
+            l.innerHTML = `<div style="color:${c}">> ${m}</div>` + l.innerHTML;
         }
     </script>
 </body>
