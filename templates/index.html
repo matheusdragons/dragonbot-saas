@@ -1,162 +1,157 @@
-<script>
-        let ws;
-        let conectado = false, roboLigado = false, operacaoEmCurso = false;
-        let wins = 0, losses = 0, lucroTotal = 0.0;
-        let stakeAtual = 1.0;
-        let ultimoContratoId = null;
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>DragonBot SaaS</title>
+    <style>
+        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0; display: block; }
+        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-bottom: 1px solid #2d333f; }
+        .container { display: flex; gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #2d333f; }
+        .main-panel { flex: 1; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #2d333f; }
+        .input-group { margin-bottom: 10px; }
+        label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; }
+        .saldo-box { background: #000; padding: 15px; border-radius: 10px; border: 1px solid var(--primary); text-align: center; margin-bottom: 15px; }
+        #preco { font-size: 4em; text-align: center; color: var(--success); font-family: monospace; margin: 10px 0; }
+        button { width: 100%; padding: 12px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        .btn-connect { background: var(--primary); color: #000; }
+        .btn-auto { background: #ffaa00; color: #000; }
+        .btn-auto.active { background: var(--danger); color: #fff; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .stat-item { background: #000; padding: 10px; border-radius: 5px; text-align: center; font-size: 14px; }
+        #log { background: #000; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 11px; margin-top: 15px; border: 1px solid #222; }
+        .win { color: var(--success); } .loss { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="/static/logo.jpg" alt="Logo" style="height:50px">
+        <div id="status">Status: Desconectado 🔴</div>
+    </div>
 
-        function conectarAgora() {
-            const token = document.getElementById('token_input').value.trim();
-            if (!token) return alert("Insira o Token!");
+    <div class="container">
+        <div class="sidebar">
+            <div class="input-group">
+                <label>TOKEN DERIV</label>
+                <input type="password" id="token" placeholder="Insira o seu token">
+            </div>
+            <button class="btn-connect" onclick="conectar()">AUTENTICAR</button>
+            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+            <div class="input-group"><label>STAKE ($)</label><input type="number" id="stake" value="1.00"></div>
+            <div class="input-group">
+                <label>ESTRATÉGIA</label>
+                <select id="estrategia">
+                    <option value="martingale">Martingale</option>
+                    <option value="fixo">Mão Fixa</option>
+                </select>
+            </div>
+            <button id="btnPlay" class="btn-auto" onclick="toggleBot()">LIGAR ROBÔ</button>
+            <button onclick="location.reload()" style="background:#333; color:#ccc; font-size:10px;">RECARREGAR PÁGINA</button>
+        </div>
+
+        <div class="main-panel">
+            <div class="saldo-box">
+                <small style="color:#888">SALDO</small>
+                <div id="balance" style="font-size:24px; font-weight:bold;">0.00 USD</div>
+            </div>
+            <div class="stats">
+                <div class="stat-item">Wins: <span id="wins" class="win">0</span></div>
+                <div class="stat-item">Loss: <span id="losses" class="loss">0</span></div>
+                <div class="stat-item">Lucro: <span id="profit">0.00</span></div>
+            </div>
+            <div id="preco">0.0000</div>
+            <div id="log">Aguardando...</div>
+        </div>
+    </div>
+
+    <script>
+        let ws, conectado = false, operando = false, emAberto = false;
+        let wins = 0, losses = 0, lucro = 0.0, stakeAtual = 1.0;
+
+        function escreverLog(m, c="white") {
+            const l = document.getElementById('log');
+            l.innerHTML = `<div style="color:${c}">> ${m}</div>` + l.innerHTML;
+        }
+
+        function conectar() {
+            const t = document.getElementById('token').value;
+            if(!t) return alert("Token vazio!");
             
-            if(ws) ws.close(); // Fecha conexão anterior se houver
             ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+            
+            ws.onopen = () => ws.send(JSON.stringify({authorize: t}));
+            
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                if(d.error) return escreverLog(d.error.message, "red");
 
-            ws.onopen = () => ws.send(JSON.stringify({ "authorize": token }));
-
-            ws.onmessage = (msg) => {
-                const res = JSON.parse(msg.data);
-                
-                // 1. Tratamento de Erros
-                if (res.error) {
-                    escreverLog(`<span style="color:red">ERRO: ${res.error.message}</span>`);
-                    operacaoEmCurso = false; 
-                    return;
-                }
-                
-                // 2. Autorização e Inscrição
-                if (res.msg_type === "authorize") {
+                if(d.msg_type === "authorize") {
                     conectado = true;
-                    document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                    escreverLog("CONTA CONECTADA!");
-                    ws.send(JSON.stringify({ "balance": 1, "subscribe": 1 }));
-                    ws.send(JSON.stringify({ "ticks": "R_100", "subscribe": 1 }));
-                    ws.send(JSON.stringify({ "proposal_open_contract": 1, "subscribe": 1 }));
+                    document.getElementById('status').innerHTML = "Status: Online 🟢";
+                    escreverLog("Conectado!", "#00ff88");
+                    ws.send(JSON.stringify({balance: 1, subscribe: 1}));
+                    ws.send(JSON.stringify({ticks: "R_100", subscribe: 1}));
+                    ws.send(JSON.stringify({proposal_open_contract: 1, subscribe: 1}));
                 }
 
-                // 3. Atualização de Saldo
-                if (res.balance) {
-                    document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " USD";
-                }
+                if(d.balance) document.getElementById('balance').innerText = d.balance.balance.toFixed(2) + " USD";
 
-                // 4. Lógica de Ticks (O Coração do Robô)
-                if (res.tick) {
-                    const p = res.tick.quote;
+                if(d.tick) {
+                    const p = d.tick.quote;
                     document.getElementById('preco').innerText = p;
-                    
-                    // Só entra se: Robô ON, Não houver operação e o dígito for 7
-                    if (roboLigado && !operacaoEmCurso && p.toString().slice(-1) === "7") {
+                    // Lógica para não travar: só entra se não houver ordem em aberto
+                    if(operando && !emAberto && p.toString().slice(-1) === "7") {
                         fazerEntrada();
                     }
                 }
 
-                // 5. Processamento de Resultado (Onde estava travando)
-                if (res.proposal_open_contract) {
-                    const c = res.proposal_open_contract;
+                if(d.proposal_open_contract && d.proposal_open_contract.is_completed) {
+                    const c = d.proposal_open_contract;
+                    const res = parseFloat(c.profit);
+                    emAberto = false; // LIBERA PARA PRÓXIMA ENTRADA
                     
-                    // Verifica se o contrato finalizou e se ainda não processamos este ID
-                    if (c.is_completed === 1 && c.contract_id !== ultimoContratoId) {
-                        ultimoContratoId = c.contract_id;
-                        
-                        const lucro = parseFloat(c.profit);
-                        const stakeInicial = parseFloat(document.getElementById('stake_input').value);
-                        const gale = parseFloat(document.getElementById('mult_input').value);
-                        const est = document.getElementById('estrategia_input').value;
-
-                        // Atualiza Contadores
-                        if (lucro > 0) {
-                            wins++;
-                            escreverLog(`<span class="win">GANHOU: +$${lucro.toFixed(2)}</span>`);
-                            stakeAtual = (est === "soros") ? Number((stakeAtual + lucro).toFixed(2)) : stakeInicial;
-                        } else {
-                            losses++;
-                            escreverLog(`<span class="loss">PERDEU: -$${Math.abs(lucro).toFixed(2)}</span>`);
-                            stakeAtual = (est === "martingale") ? Number((stakeAtual * gale).toFixed(2)) : stakeInicial;
-                        }
-                        
-                        lucroTotal += lucro;
-                        
-                        // ATUALIZAÇÃO IMEDIATA DO PAINEL
-                        document.getElementById('wins_display').innerText = wins;
-                        document.getElementById('losses_display').innerText = losses;
-                        const pnl = document.getElementById('profit_display');
-                        pnl.innerText = lucroTotal.toFixed(2);
-                        pnl.className = lucroTotal >= 0 ? "stat-value win" : "stat-value loss";
-                        
-                        // LIBERA PARA A PRÓXIMA ENTRADA
-                        setTimeout(() => { operacaoEmCurso = false; }, 500); 
+                    if(res > 0) {
+                        wins++;
+                        escreverLog(`GANHOU: +${res}`, "#00ff88");
+                        stakeAtual = parseFloat(document.getElementById('stake').value);
+                    } else {
+                        losses++;
+                        escreverLog(`PERDEU: ${res}`, "#ff4444");
+                        if(document.getElementById('estrategia').value === "martingale") stakeAtual *= 2.1;
                     }
+                    lucro += res;
+                    document.getElementById('wins').innerText = wins;
+                    document.getElementById('losses').innerText = losses;
+                    document.getElementById('profit').innerText = lucro.toFixed(2);
                 }
             };
         }
 
         function fazerEntrada() {
-            const stopWin = parseFloat(document.getElementById('stopWin_input').value);
-            const stopLoss = parseFloat(document.getElementById('stopLoss_input').value);
-
-            if (lucroTotal >= stopWin) { alertaFinal("🏆 META BATIDA!", "win"); pararBot(); return; }
-            if (lucroTotal <= (stopLoss * -1)) { alertaFinal("🚫 STOP LOSS!", "loss"); pararBot(); return; }
-
-            operacaoEmCurso = true; // Trava para não fazer entradas duplas no mesmo tick
-            
+            emAberto = true; // TRAVA ENTRADAS DUPLAS
             ws.send(JSON.stringify({
-                "buy": 1, 
-                "price": stakeAtual,
-                "parameters": {
-                    "amount": stakeAtual, 
-                    "basis": "stake", 
-                    "contract_type": "DIGITDIFF",
-                    "currency": "USD", 
-                    "duration": 1, 
-                    "duration_unit": "t", 
-                    "symbol": "R_100", 
-                    "barrier": "7"
+                buy: 1, price: stakeAtual,
+                parameters: {
+                    amount: stakeAtual, basis: "stake", contract_type: "DIGITDIFF",
+                    currency: "USD", duration: 1, duration_unit: "t", symbol: "R_100", barrier: "7"
                 }
             }));
-            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)}`);
+            escreverLog(`Ordem enviada: $${stakeAtual.toFixed(2)}`);
         }
 
-        function toggleRobo() {
-            if (!conectado) return alert("Conecte primeiro!");
-            roboLigado = !roboLigado;
-            const btn = document.getElementById('btnAuto');
-            btn.innerText = roboLigado ? "Parar Robô" : "Ligar Modo Automático";
-            btn.classList.toggle('ligado', roboLigado);
-            if (roboLigado) {
-                document.getElementById('alerta_resultado').style.display = 'none';
-                stakeAtual = parseFloat(document.getElementById('stake_input').value);
-                operacaoEmCurso = false; 
-                escreverLog("MODO AUTOMÁTICO LIGADO");
+        function toggleBot() {
+            if(!conectado) return alert("Conecte primeiro!");
+            operando = !operando;
+            const b = document.getElementById('btnPlay');
+            b.innerText = operando ? "PARAR ROBÔ" : "LIGAR ROBÔ";
+            b.classList.toggle('active', operando);
+            if(operando) {
+                stakeAtual = parseFloat(document.getElementById('stake').value);
+                emAberto = false;
             }
         }
-
-        function resetarSessao() {
-            wins = 0; losses = 0; lucroTotal = 0.0;
-            ultimoContratoId = null;
-            operacaoEmCurso = false;
-            document.getElementById('wins_display').innerText = "0";
-            document.getElementById('losses_display').innerText = "0";
-            document.getElementById('profit_display').innerText = "0.00";
-            escreverLog("Sessão resetada.");
-        }
-
-        function alertaFinal(msg, tipo) {
-            const box = document.getElementById('alerta_resultado');
-            box.style.display = 'block';
-            box.innerText = msg;
-            box.style.border = `2px solid ${tipo === 'win' ? 'var(--success)' : 'var(--danger)'}`;
-            box.style.color = tipo === 'win' ? 'var(--success)' : 'var(--danger)';
-        }
-
-        function pararBot() {
-            roboLigado = false;
-            const btn = document.getElementById('btnAuto');
-            btn.innerText = "Ligar Modo Automático";
-            btn.classList.remove('ligado');
-        }
-
-        function escreverLog(t) {
-            const log = document.getElementById('log');
-            log.innerHTML = `<div>> ${t}</div>` + log.innerHTML;
-        }
     </script>
+</body>
+</html>
