@@ -1,196 +1,34 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>DragonBot Pro - High Performance</title>
-    <style>
-        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; }
-        .header { height: 70px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; border-bottom: 1px solid #2d333f; }
-        .container { display: flex; gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-        .sidebar { width: 320px; background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #2d333f; }
-        .main { flex: 1; background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #2d333f; text-align: center; }
-        .input-group { margin-bottom: 12px; text-align: left; }
-        label { display: block; font-size: 10px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
-        input, select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
-        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; text-transform: uppercase; transition: 0.3s; }
-        .btn-auth { background: var(--primary); color: #000; }
-        .btn-start { background: var(--success); color: #000; }
-        .btn-start.active { background: var(--danger); color: white; }
-        #preco { font-size: 4.5em; font-weight: 900; color: var(--success); font-family: monospace; margin: 15px 0; text-shadow: 0 0 20px rgba(0,255,136,0.2); }
-        .stat-box { background: #1f242e; padding: 15px; border-radius: 10px; border: 1px solid #333; }
-        #log { background: #000; padding: 12px; height: 180px; overflow-y: auto; border-radius: 8px; font-size: 11px; font-family: monospace; text-align: left; border: 1px solid #222; margin-top: 15px; }
-        .win-text { color: var(--success) !important; font-weight: bold; }
-        .loss-text { color: var(--danger) !important; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <div style="font-weight: 900; color: var(--primary); font-size: 24px;">DRAGON<span style="color:white">BOT</span></div>
-        <div id="status_ws">Status: Desconectado 🔴</div>
-    </header>
+// Procure a função ws.onmessage no seu index.html e garanta que ela esteja assim:
+ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
 
-    <div class="container">
-        <div class="sidebar">
-            <div class="input-group"><label>Token API</label><input type="password" id="token_field"></div>
-            <div class="input-group">
-                <label>Gerenciamento</label>
-                <select id="strategy_type">
-                    <option value="fixo">Mão Fixa</option>
-                    <option value="martingale">Martingale</option>
-                    <option value="soros">Soros</option>
-                </select>
-            </div>
-            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_field" value="1.00" step="0.1"></div>
-            <div class="input-group"><label>Multiplicador</label><input type="number" id="gale_factor" value="2.0" step="0.1"></div>
-            <div class="input-group"><label>Stop Win ($)</label><input type="number" id="stopwin_field" value="5.00"></div>
-            <div class="input-group"><label>Stop Loss ($)</label><input type="number" id="stoploss_field" value="10.00"></div>
-            
-            <button class="btn btn-auth" onclick="iniciarConexao()">CONECTAR CONTA</button>
-            <button id="btnPlay" class="btn btn-start" onclick="toggleRobot()">LIGAR ROBÔ</button>
-            <button class="btn" style="background:#222; color:#555; font-size:10px;" onclick="resetStats()">RESETAR PAINÉIS</button>
-        </div>
+    if (data.authorize) {
+        is_auth = true;
+        document.getElementById('status_ws').innerHTML = "Status: Online 🟢";
+        document.getElementById('balance_val').innerText = data.authorize.balance.toFixed(2) + " USD";
+        logMsg("CONTA CONECTADA!", "win-text");
+        ws.send(JSON.stringify({action: "watch"}));
+    }
 
-        <div class="main">
-            <div style="border: 2px solid var(--primary); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                <small style="color:#888">SALDO ATUALIZADO</small>
-                <div id="balance_val" style="font-size: 28px; font-weight: bold; color: var(--primary);">0.00 USD</div>
-            </div>
+    if (data.balance) {
+        document.getElementById('balance_val').innerText = data.balance.balance.toFixed(2) + " USD";
+    }
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                <div class="stat-box">WINS<br><span id="wins_val" class="win-text" style="font-size: 22px;">0</span></div>
-                <div class="stat-box">LOSSES<br><span id="losses_val" class="loss-text" style="font-size: 22px;">0</span></div>
-            </div>
-
-            <div class="stat-box">LUCRO ACUMULADO<br><span id="profit_val" style="font-size: 26px; font-weight: bold;">0.00</span></div>
-            <div id="preco">0.0000</div>
-            <div id="log">Aguardando conexão...</div>
-        </div>
-    </div>
-
-    <script>
-        let ws;
-        let is_running = false, is_trading = false, is_auth = false;
-        let v_wins = 0, v_losses = 0, v_profit = 0.0, v_stake = 1.0;
-        let processed_contracts = new Set(); // Evita duplicar o mesmo resultado
-
-        function logMsg(msg, colorClass = "") {
-            const logDiv = document.getElementById('log');
-            const time = new Date().toLocaleTimeString();
-            const newLog = document.createElement('div');
-            newLog.className = colorClass;
-            newLog.innerHTML = `[${time}] ${msg}`;
-            logDiv.insertBefore(newLog, logDiv.firstChild);
+    if (data.tick) {
+        document.getElementById('preco').innerText = data.tick.quote;
+        if (is_running && !is_trading && data.tick.quote.toString().slice(-1) === "7") {
+            executarEntrada();
         }
+    }
 
-        function iniciarConexao() {
-            const token = document.getElementById('token_field').value;
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-            ws.onopen = () => ws.send(JSON.stringify({action: "auth", token: token}));
-
-            ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-
-                // 1. Autenticação
-                if (data.authorize) {
-                    is_auth = true;
-                    document.getElementById('status_ws').innerHTML = "Status: Online 🟢";
-                    document.getElementById('balance_val').innerText = data.authorize.balance.toFixed(2) + " USD";
-                    logMsg("CONTA CONECTADA!", "win-text");
-                    ws.send(JSON.stringify({action: "watch"}));
-                }
-
-                // 2. Saldo (Atualização em tempo real)
-                if (data.balance) {
-                    document.getElementById('balance_val').innerText = data.balance.balance.toFixed(2) + " USD";
-                }
-
-                // 3. Ticks e Gatilho
-                if (data.tick) {
-                    document.getElementById('preco').innerText = data.tick.quote;
-                    if (is_running && !is_trading && data.tick.quote.toString().slice(-1) === "7") {
-                        executarEntrada();
-                    }
-                }
-
-                // 4. PROCESSAMENTO DE RESULTADO (AQUI ESTAVA O ERRO)
-                if (data.proposal_open_contract) {
-                    const contract = data.proposal_open_contract;
-                    // Se o contrato terminou e ainda não processamos este ID
-                    if (contract.is_completed && !processed_contracts.has(contract.contract_id)) {
-                        processed_contracts.add(contract.contract_id);
-                        handleFinalResult(contract);
-                    }
-                }
-            };
-        }
-
-        function executarEntrada() {
-            is_trading = true;
-            logMsg(`ENVIANDO ORDEM: $${v_stake.toFixed(2)}`, "win-text");
-            ws.send(JSON.stringify({ action: "buy", stake: v_stake.toString() }));
-            
-            // Destrava após 10s caso a corretora suma
-            setTimeout(() => { is_trading = false; }, 10000);
-        }
-
-        function handleFinalResult(c) {
-            const profit = parseFloat(c.profit);
-            const type = document.getElementById('strategy_type').value;
-            const baseStake = parseFloat(document.getElementById('stake_field').value);
-
-            v_profit += profit;
-
-            if (profit > 0) {
-                v_wins++;
-                logMsg(`[WIN] RESULTADO: +$${profit.toFixed(2)}`, "win-text");
-                if (type === "soros") v_stake += profit;
-                else v_stake = baseStake;
-            } else {
-                v_losses++;
-                logMsg(`[LOSS] RESULTADO: -$${Math.abs(profit).toFixed(2)}`, "loss-text");
-                if (type === "martingale") v_stake *= parseFloat(document.getElementById('gale_factor').value);
-                else v_stake = baseStake;
-            }
-
-            // ATUALIZAÇÃO FORÇADA DE TODOS OS PAINÉIS
-            updateUI();
-
-            // PEDE SALDO NOVO PARA A CORRETORA
+    if (data.proposal_open_contract) {
+        const c = data.proposal_open_contract;
+        if (c.is_completed && !processed_contracts.has(c.contract_id)) {
+            processed_contracts.add(c.contract_id);
+            // ESSA FUNÇÃO ATUALIZA OS PAINÉIS E O LOG PRETO
+            handleFinalResult(c);
+            // PEDE O SALDO NOVO IMEDIATAMENTE
             ws.send(JSON.stringify({action: "balance"}));
-
-            // LIBERA O LOOPING
-            setTimeout(() => { is_trading = false; }, 500);
         }
-
-        function updateUI() {
-            document.getElementById('wins_val').textContent = v_wins;
-            document.getElementById('losses_val').textContent = v_losses;
-            document.getElementById('profit_val').textContent = v_profit.toFixed(2);
-            document.getElementById('profit_val').style.color = v_profit >= 0 ? "#00ff88" : "#ff4444";
-        }
-
-        function toggleRobot() {
-            if(!is_auth) return alert("Conecte primeiro!");
-            is_running = !is_running;
-            const btn = document.getElementById('btnPlay');
-            btn.innerText = is_running ? "PARAR ROBÔ" : "LIGAR ROBÔ";
-            btn.className = is_running ? "btn btn-start active" : "btn btn-start";
-            if(is_running) {
-                v_stake = parseFloat(document.getElementById('stake_field').value);
-                is_trading = false;
-                logMsg("BUSCANDO DÍGITO 7...");
-            }
-        }
-
-        function resetStats() {
-            v_wins = 0; v_losses = 0; v_profit = 0.0;
-            processed_contracts.clear();
-            updateUI();
-            logMsg("Estatísticas zeradas.");
-        }
-    </script>
-</body>
-</html>
+    }
+};
