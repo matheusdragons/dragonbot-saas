@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = "dragon_secret_key_pro_99"
 
-# CONFIGURAÇÃO DO BANCO (PostgreSQL no Railway)
+# CONFIGURAÇÃO DO BANCO (PostgreSQL no Railway ou SQLite local)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -23,6 +23,27 @@ class User(db.Model):
 
 with app.app_context():
     db.create_all()
+
+# --- ROTA DE TESTE (SIMULAÇÃO DE COMPRA) ---
+# Acesse: seunome.railway.app/testar-pagamento
+@app.route('/testar-pagamento')
+def testar_pagamento():
+    email_teste = "cliente@teste.com"
+    user = User.query.filter_by(email=email_teste).first()
+    
+    if not user:
+        senha_inicial = generate_password_hash('dragon123')
+        user = User(
+            email=email_teste, 
+            password=senha_inicial, 
+            status_assinatura='ativo', 
+            validade=datetime.utcnow() + timedelta(days=30)
+        )
+        db.session.add(user)
+        db.session.commit()
+        return f"<h1>Sucesso!</h1><p>Usuário <b>{email_teste}</b> criado com senha <b>dragon123</b>.</p><a href='/login'>Ir para Login</a>"
+    else:
+        return f"<h1>Atenção</h1><p>O usuário <b>{email_teste}</b> já existe no banco.</p><a href='/login'>Ir para Login</a>"
 
 # --- ROTAS DE NAVEGAÇÃO ---
 
@@ -50,8 +71,9 @@ def dashboard():
         return redirect(url_for('login'))
     
     user = User.query.get(session['user_id'])
+    # Se a assinatura expirou, bloqueia
     if user.status_assinatura != 'ativo' or user.validade < datetime.utcnow():
-        return "Sua assinatura expirou ou não foi identificada. <a href='/'>Voltar</a>"
+        return "Sua assinatura expirou. <a href='/'>Voltar</a>"
         
     return render_template('dashboard.html')
 
@@ -74,7 +96,7 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('landing'))
 
-# --- WEBHOOK DA KIRVANO (AUTOMAÇÃO) ---
+# --- WEBHOOK DA KIRVANO ---
 
 @app.route('/webhook-kirvano', methods=['POST'])
 def webhook_kirvano():
@@ -88,9 +110,7 @@ def webhook_kirvano():
 
     if evento in ['order_approved', 'subscription_created', 'subscription_renewed']:
         user = User.query.filter_by(email=email_cliente).first()
-        
         if not user:
-            # CRIAÇÃO AUTOMÁTICA (Senha padrão: dragon123)
             senha_inicial = generate_password_hash('dragon123')
             user = User(
                 email=email_cliente, 
@@ -102,7 +122,6 @@ def webhook_kirvano():
         else:
             user.status_assinatura = 'ativo'
             user.validade = datetime.utcnow() + timedelta(days=30)
-        
         db.session.commit()
 
     return jsonify({"status": "success"}), 200
