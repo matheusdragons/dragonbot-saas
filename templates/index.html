@@ -86,7 +86,6 @@
         function iniciarConexao() {
             const token = document.getElementById('token_field').value;
             if(!token) return alert("Por favor, insira o Token!");
-
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
@@ -97,7 +96,6 @@
 
             ws.onmessage = (e) => {
                 const data = JSON.parse(e.data);
-
                 if (data.authorize) {
                     is_auth = true;
                     document.getElementById('status_ws').innerHTML = "Status: Online 🟢";
@@ -105,22 +103,13 @@
                     logMsg("CONTA AUTENTICADA COM SUCESSO!", "win-text");
                     ws.send(JSON.stringify({action: "watch"}));
                 }
-
-                if (data.balance) {
-                    document.getElementById('balance_val').innerText = data.balance.balance.toFixed(2) + " USD";
-                }
-
+                if (data.balance) { document.getElementById('balance_val').innerText = data.balance.balance.toFixed(2) + " USD"; }
                 if (data.tick) {
                     const price = data.tick.quote;
                     document.getElementById('preco').innerText = price;
                     const lastDigit = price.toString().slice(-1);
-
-                    // GATILHO DE ENTRADA
-                    if (is_running && !is_trading && lastDigit === "7") {
-                        executarCompra();
-                    }
+                    if (is_running && !is_trading && lastDigit === "7") { executarCompra(); }
                 }
-
                 if (data.proposal_open_contract && data.proposal_open_contract.is_completed) {
                     const contract = data.proposal_open_contract;
                     if (contract.contract_id !== last_id) {
@@ -142,15 +131,19 @@
             }
 
             is_trading = true;
-            logMsg(`Enviando Ordem: $${v_stake.toFixed(2)}...`);
-            ws.send(JSON.stringify({action: "buy", stake: v_stake}));
+            logMsg(`Enviando Ordem Real: Stake $${v_stake.toFixed(2)}...`, "win-text");
+            
+            // COMANDO CORRIGIDO PARA O APP.PY EXECUTAR NA DERIV
+            ws.send(JSON.stringify({
+                action: "buy", 
+                stake: v_stake.toString()
+            }));
         }
 
         function finalizarTrade(c) {
             const p = parseFloat(c.profit);
             const type = document.getElementById('strategy_type').value;
             const baseStake = parseFloat(document.getElementById('stake_field').value);
-
             v_profit += p;
 
             if (p > 0) {
@@ -165,14 +158,13 @@
                 else v_stake = baseStake;
             }
 
-            // ATUALIZAÇÃO DOS PAINÉIS (CATALOGADOR)
             document.getElementById('wins_val').innerText = v_wins;
             document.getElementById('losses_val').innerText = v_losses;
             document.getElementById('profit_val').innerText = v_profit.toFixed(2);
             document.getElementById('profit_val').className = v_profit >= 0 ? "win-text" : "loss-text";
-
-            // LIBERAÇÃO PARA A PRÓXIMA ENTRADA (SEM TRAVAR)
-            is_trading = false;
+            
+            // Pequeno delay para resetar o estado de trading e evitar travas
+            setTimeout(() => { is_trading = false; }, 500);
         }
 
         function toggleRobot() {
