@@ -6,40 +6,26 @@
     <style>
         :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
         body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; display: block; padding: 0; }
-        
-        .header { 
-            width: 100%; height: 80px; background: var(--card); display: flex; 
-            align-items: center; justify-content: space-between; padding: 0 40px; 
-            box-sizing: border-box; border-bottom: 1px solid #2d333f; margin-bottom: 20px;
-        }
+        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-bottom: 1px solid #2d333f; margin-bottom: 20px; }
         .logo-container img { height: 60px; width: auto; border-radius: 5px; object-fit: contain; }
-
         .container { display: flex; gap: 20px; max-width: 1250px; margin: 0 auto; padding: 0 20px 20px 20px; }
-        
         .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #2d333f; height: fit-content; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .sidebar h3 { font-size: 14px; color: var(--primary); text-transform: uppercase; margin-top: 0; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
-        
         .main-panel { flex: 1; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d333f; position: relative; }
-
         .input-group { text-align: left; margin-bottom: 15px; }
         .input-group label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
         input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; font-size: 14px; outline: none; }
-
         .saldo-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; text-align: center; }
         .saldo-valor { font-size: 36px; font-weight: bold; color: var(--primary); font-family: monospace; }
-
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; border: 1px solid #333; text-align: center; }
-        
         .win { color: var(--success) !important; }
         .loss { color: var(--danger) !important; }
-
         button { width: 100%; padding: 16px; font-weight: bold; cursor: pointer; border-radius: 10px; margin-top: 10px; border: none; transition: 0.3s; text-transform: uppercase; }
         .btn-verde { background: var(--success); color: #000; }
         .btn-auto { background: #ffaa00; color: white; }
         .btn-auto.ligado { background: var(--danger); }
         .btn-reset { background: #333; color: white; margin-top: 20px; border: 1px solid #444; }
-
         #alerta_resultado { display: none; padding: 15px; border-radius: 10px; font-weight: bold; margin-bottom: 15px; text-align: center; font-size: 18px; }
         #preco { font-size: 5em; color: var(--success); margin: 20px 0; font-weight: 900; font-family: monospace; text-align: center; }
         #status_display { font-size: 14px; font-weight: bold; }
@@ -47,10 +33,9 @@
     </style>
 </head>
 <body>
-
     <header class="header">
         <div class="logo-container">
-            <img src="/static/logo.jpg" alt="Logo" onerror="this.src='https://via.placeholder.com/150x50/161a23/00d9ff?text=LOGO'">
+            <img src="https://via.placeholder.com/150x50/161a23/00d9ff?text=DRAGON+BOT" alt="Logo">
         </div>
         <div id="status_display">Status: Aguardando Conexão... 🔴</div>
     </header>
@@ -120,21 +105,16 @@
         let historicoContratos = new Set();
         let stakeAtual = 1.0;
 
-        // FUNÇÃO ATUALIZADA PARA SUPORTAR WSS NO RAILWAY
         function initWS() {
+            // AJUSTE PARA WSS SEGURO (Obrigatório para o Railway)
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
             ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
             
             ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
-            
             ws.onclose = () => {
                 conectado = false;
                 document.getElementById('status_display').innerHTML = "Status: Desconectado 🔴";
                 setTimeout(initWS, 2000);
-            };
-
-            ws.onerror = (error) => {
-                console.error("Erro WebSocket:", error);
             };
         }
         initWS();
@@ -149,7 +129,7 @@
             if (res.authorize) {
                 conectado = true;
                 document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                escreverLog("CONTA CONECTADA!");
+                escreverLog("CONTA CONECTADA COM SUCESSO!");
                 ws.send(JSON.stringify({action: "watch"}));
             }
             if (res.balance) {
@@ -174,7 +154,7 @@
 
         function conectarAgora() {
             let tk = document.getElementById('token_input').value.trim();
-            if(!tk) return alert("Insira seu Token!");
+            if(!tk) return alert("Insira seu Token API da Deriv!");
             ws.send(JSON.stringify({action: "auth", token: tk}));
         }
 
@@ -189,7 +169,7 @@
 
             operacaoEmCurso = true; 
             ws.send(JSON.stringify({action: "buy", stake: stakeAtual}));
-            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)} (Aguardando finalização...)`);
+            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)}`);
         }
 
         function processarResultado(c) {
@@ -205,11 +185,8 @@
             } else {
                 losses++;
                 escreverLog(`<span class="loss">❌ LOSS: -$${Math.abs(p).toFixed(2)}</span>`);
-                if (est === "martingale") {
-                    stakeAtual = Number((stakeAtual * mult).toFixed(2));
-                } else {
-                    stakeAtual = inicial;
-                }
+                if (est === "martingale") { stakeAtual = Number((stakeAtual * mult).toFixed(2)); } 
+                else { stakeAtual = inicial; }
             }
             lucroTotal = Number((lucroTotal + p).toFixed(2));
             atualizarPainel();
