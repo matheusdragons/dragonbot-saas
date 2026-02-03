@@ -20,7 +20,8 @@
         #preco { font-size: 4.5em; font-weight: 900; color: var(--success); font-family: monospace; margin: 15px 0; text-shadow: 0 0 20px rgba(0,255,136,0.2); }
         .stat-box { background: #1f242e; padding: 15px; border-radius: 10px; border: 1px solid #333; }
         #log { background: #000; padding: 12px; height: 180px; overflow-y: auto; border-radius: 8px; font-size: 11px; font-family: monospace; text-align: left; border: 1px solid #222; margin-top: 15px; }
-        .win-text { color: var(--success) !important; } .loss-text { color: var(--danger) !important; }
+        .win-text { color: var(--success) !important; font-weight: bold; }
+        .loss-text { color: var(--danger) !important; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -52,7 +53,7 @@
 
         <div class="main">
             <div style="border: 2px solid var(--primary); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                <small style="color:#888">SALDO ATUAL</small>
+                <small style="color:#888">SALDO DA CORRETORA</small>
                 <div id="balance_val" style="font-size: 28px; font-weight: bold; color: var(--primary);">0.00 USD</div>
             </div>
 
@@ -71,6 +72,7 @@
         let ws;
         let is_running = false, is_trading = false, is_auth = false;
         let v_wins = 0, v_losses = 0, v_profit = 0.0, v_stake = 1.0;
+        let last_contract_id = null;
 
         function logMsg(msg, colorClass = "") {
             const logDiv = document.getElementById('log');
@@ -92,7 +94,7 @@
                     is_auth = true;
                     document.getElementById('status_ws').innerHTML = "Status: Online 🟢";
                     document.getElementById('balance_val').innerText = data.authorize.balance.toFixed(2) + " USD";
-                    logMsg("CONTA CONECTADA!", "win-text");
+                    logMsg("CONTA AUTORIZADA COM SUCESSO!", "win-text");
                     ws.send(JSON.stringify({action: "watch"}));
                 }
 
@@ -107,66 +109,70 @@
                     }
                 }
 
-                // AQUI ESTÁ A CHAVE: Captura o resultado do contrato
                 if (data.proposal_open_contract) {
                     const c = data.proposal_open_contract;
-                    if (c.is_completed) {
-                        processarFimContrato(c);
+                    if (c.is_completed && c.contract_id !== last_contract_id) {
+                        last_contract_id = c.contract_id;
+                        processarResultadoReal(c);
                     }
                 }
             };
         }
 
         function executarEntrada() {
-            // Checa Meta
             if (v_profit >= parseFloat(document.getElementById('stopwin_field').value) || 
                 v_profit <= (parseFloat(document.getElementById('stoploss_field').value) * -1)) {
-                logMsg("META ATINGIDA.", "win-text");
+                logMsg("META ALCANÇADA! SISTEMA PAUSADO.", "win-text");
                 is_running = false; atualizarBotao(); return;
             }
 
             is_trading = true;
-            logMsg(`ENTRADA ENVIADA: $${v_stake.toFixed(2)}`, "win-text");
+            logMsg(`ENVIANDO ORDEM: Stake $${v_stake.toFixed(2)}`, "win-text");
             ws.send(JSON.stringify({ action: "buy", stake: v_stake.toString() }));
             
-            // Segurança: Se a corretora travar, libera em 12 segundos
-            setTimeout(() => { is_trading = false; }, 12000);
+            // Segurança: destrava o robô se a corretora não responder em 10s
+            setTimeout(() => { if(is_trading) is_trading = false; }, 10000);
         }
 
-        function processarFimContrato(c) {
+        function processarResultadoReal(c) {
             const p = parseFloat(c.profit);
             v_profit += p;
 
             if (p > 0) {
                 v_wins++;
-                logMsg(`VITÓRIA: +$${p.toFixed(2)}`, "win-text");
+                logMsg(`[WIN] RESULTADO: +$${p.toFixed(2)}`, "win-text");
                 if (document.getElementById('strategy_type').value === "soros") v_stake += p;
                 else v_stake = parseFloat(document.getElementById('stake_field').value);
             } else {
                 v_losses++;
-                logMsg(`DERROTA: -$${Math.abs(p).toFixed(2)}`, "loss-text");
+                logMsg(`[LOSS] RESULTADO: -$${Math.abs(p).toFixed(2)}`, "loss-text");
                 if (document.getElementById('strategy_type').value === "martingale") v_stake *= parseFloat(document.getElementById('gale_factor').value);
                 else v_stake = parseFloat(document.getElementById('stake_field').value);
             }
 
-            // ATUALIZAÇÃO FORÇADA DOS PAINÉIS
-            document.getElementById('wins_val').innerHTML = v_wins;
-            document.getElementById('losses_val').innerHTML = v_losses;
-            document.getElementById('profit_val').innerHTML = v_profit.toFixed(2);
-            document.getElementById('profit_val').style.color = v_profit >= 0 ? "#00ff88" : "#ff4444";
+            // ATUALIZAÇÃO DOS PAINÉIS
+            document.getElementById('wins_val').innerText = v_wins;
+            document.getElementById('losses_val').innerText = v_losses;
+            document.getElementById('profit_val').innerText = v_profit.toFixed(2);
+            document.getElementById('profit_val').className = v_profit >= 0 ? "win-text" : "loss-text";
 
-            // LIBERA IMEDIATAMENTE PARA A PRÓXIMA
-            is_trading = false;
+            // SOLICITA SALDO ATUALIZADO PARA A CORRETORA
+            ws.send(JSON.stringify({action: "balance"}));
+
+            // LIBERA PARA PRÓXIMA ENTRADA
+            setTimeout(() => { is_trading = false; }, 500);
         }
 
         function toggleRobot() {
-            if(!is_auth) return alert("Conecte primeiro!");
+            if(!is_auth) return alert("Conecte a conta primeiro!");
             is_running = !is_running;
             atualizarBotao();
             if(is_running) {
                 v_stake = parseFloat(document.getElementById('stake_field').value);
                 is_trading = false;
-                logMsg("BUSCANDO OPORTUNIDADE...");
+                logMsg("MOTOR LIGADO - Buscando Dígito 7...");
+            } else {
+                logMsg("MOTOR DESLIGADO.");
             }
         }
 
@@ -181,7 +187,7 @@
             document.getElementById('wins_val').innerText = "0";
             document.getElementById('losses_val').innerText = "0";
             document.getElementById('profit_val').innerText = "0.00";
-            logMsg("Painéis resetados.");
+            logMsg("Estatísticas resetadas.");
         }
     </script>
 </body>
