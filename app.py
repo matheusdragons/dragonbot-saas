@@ -5,7 +5,7 @@ import websockets
 from flask import Flask, render_template
 from flask_sock import Sock
 
-# Pega o caminho real para evitar erro 404
+# Força o Flask a encontrar a pasta templates
 base_dir = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(base_dir, 'templates'))
 sock = Sock(app)
@@ -21,12 +21,10 @@ async def deriv_proxy(client_ws):
             async def forward():
                 async for msg in client_ws:
                     data = json.loads(msg)
-                    # Força a inscrição para receber os resultados no painel
                     if data.get("action") == "buy": data["subscribe"] = 1
                     await deriv_ws.send(json.dumps(data))
             async def backward():
                 async for msg in deriv_ws:
-                    # Repassa ticks, saldo e wins/losses para o index.html
                     await client_ws.send(msg)
             await asyncio.gather(forward(), backward())
     except: pass
@@ -36,5 +34,6 @@ def handle_ws(ws):
     asyncio.run(deriv_proxy(ws))
 
 if __name__ == '__main__':
+    # O segredo está aqui: usar a porta que o Railway injeta
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
