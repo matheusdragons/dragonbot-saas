@@ -1,1 +1,23 @@
-
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Criar Conta - Dragon Bot</title>
+    <style>
+        body { background: #0b0e14; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161a23; padding: 40px; border-radius: 20px; border: 1px solid #00ff88; width: 100%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 14px; margin: 12px 0; border-radius: 10px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 16px; background: #00ff88; color: black; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color:#00ff88">Parabéns pela Compra!</h2>
+        <p>Crie seus dados de acesso abaixo:</p>
+        <input type="text" placeholder="Nome Completo">
+        <input type="email" placeholder="E-mail">
+        <input type="password" placeholder="Crie uma Senha">
+        <button onclick="alert('Conta criada! Faça login.'); window.location.href='/login'">FINALIZAR CADASTRO</button>
+    </div>
+</body>
+</html>
