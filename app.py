@@ -1,25 +1,25 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-app.secret_key = "dragon_secret_key" # Chave para sessões de usuário
+app.secret_key = "dragon_bot_super_secret"
 
-# 1. Rota da Landing Page (Página de Vendas)
+# Rota 1: Landing Page (Página de Vendas)
 @app.route('/')
 def landing():
     return render_template('landing.html')
 
-# 2. Rota de Login
+# Rota 2: Login (Para quem já é cliente)
 @app.route('/login')
 def login():
     return render_template('login.html')
 
-# 3. Rota de Cadastro (Acessada após a compra)
+# Rota 3: Cadastro (Página para onde a Kirvano envia o cliente após pagar)
 @app.route('/cadastro')
 def cadastro():
     return render_template('cadastro.html')
 
-# 4. Rota do Dashboard (Onde o robô ficará futuramente)
+# Rota 4: Dashboard (Onde o robô será construído)
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
