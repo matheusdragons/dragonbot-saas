@@ -120,7 +120,7 @@
         let historicoContratos = new Set();
         let stakeAtual = 1.0;
 
-        // FUNÇÃO MODIFICADA PARA WSS (CONEXÃO SEGURA)
+        // FUNÇÃO ATUALIZADA PARA SUPORTAR WSS NO RAILWAY
         function initWS() {
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
             ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
@@ -133,8 +133,8 @@
                 setTimeout(initWS, 2000);
             };
 
-            ws.onerror = (err) => {
-                console.error("Erro no WebSocket:", err);
+            ws.onerror = (error) => {
+                console.error("Erro WebSocket:", error);
             };
         }
         initWS();
