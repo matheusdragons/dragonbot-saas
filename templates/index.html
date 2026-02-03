@@ -1,18 +1,271 @@
-function initWS() {
-    // Esta linha identifica se o site é seguro (https) ou não (http) e ajusta o link automaticamente
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>SaaS Bot Pro - Dashboard Trader</title>
+    <style>
+        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; display: block; padding: 0; }
+        
+        .header { 
+            width: 100%; height: 80px; background: var(--card); display: flex; 
+            align-items: center; justify-content: space-between; padding: 0 40px; 
+            box-sizing: border-box; border-bottom: 1px solid #2d333f; margin-bottom: 20px;
+        }
+        .logo-container img { height: 60px; width: auto; border-radius: 5px; object-fit: contain; }
 
-    ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
-    
-    ws.onclose = () => {
-        conectado = false;
-        document.getElementById('status_display').innerHTML = "Status: Desconectado 🔴";
-        // Tenta reconectar automaticamente após 2 segundos
-        setTimeout(initWS, 2000);
-    };
+        .container { display: flex; gap: 20px; max-width: 1250px; margin: 0 auto; padding: 0 20px 20px 20px; }
+        
+        .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #2d333f; height: fit-content; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .sidebar h3 { font-size: 14px; color: var(--primary); text-transform: uppercase; margin-top: 0; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        .main-panel { flex: 1; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d333f; position: relative; }
 
-    ws.onerror = (error) => {
-        console.error("Erro na conexão WebSocket:", error);
-    };
-}
+        .input-group { text-align: left; margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; font-size: 14px; outline: none; }
+
+        .saldo-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); margin-bottom: 20px; text-align: center; }
+        .saldo-valor { font-size: 36px; font-weight: bold; color: var(--primary); font-family: monospace; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; border: 1px solid #333; text-align: center; }
+        
+        .win { color: var(--success) !important; }
+        .loss { color: var(--danger) !important; }
+
+        button { width: 100%; padding: 16px; font-weight: bold; cursor: pointer; border-radius: 10px; margin-top: 10px; border: none; transition: 0.3s; text-transform: uppercase; }
+        .btn-verde { background: var(--success); color: #000; }
+        .btn-auto { background: #ffaa00; color: white; }
+        .btn-auto.ligado { background: var(--danger); }
+        .btn-reset { background: #333; color: white; margin-top: 20px; border: 1px solid #444; }
+
+        #alerta_resultado { display: none; padding: 15px; border-radius: 10px; font-weight: bold; margin-bottom: 15px; text-align: center; font-size: 18px; }
+        #preco { font-size: 5em; color: var(--success); margin: 20px 0; font-weight: 900; font-family: monospace; text-align: center; }
+        #status_display { font-size: 14px; font-weight: bold; }
+        #log { background: #000; border-radius: 10px; padding: 15px; height: 180px; overflow-y: auto; text-align: left; font-family: monospace; font-size: 12px; border: 1px solid #222; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo-container">
+            <img src="/static/logo.jpg" alt="Logo" onerror="this.src='https://via.placeholder.com/150x50/161a23/00d9ff?text=LOGO'">
+        </div>
+        <div id="status_display">Status: Aguardando Conexão... 🔴</div>
+    </header>
+
+    <div class="container">
+        <div class="sidebar">
+            <h3>Gerenciamento</h3>
+            <div class="input-group">
+                <label>Token API</label>
+                <input type="password" id="token_input" placeholder="Cole seu token">
+            </div>
+            <div class="input-group">
+                <label>Entrada (Stake)</label>
+                <input type="number" id="stake_input" value="1.00" step="0.50">
+            </div>
+            <div class="input-group">
+                <label>Meta (Stop Win)</label>
+                <input type="number" id="stopWin_input" value="5.00">
+            </div>
+            <div class="input-group">
+                <label>Limite (Stop Loss)</label>
+                <input type="number" id="stopLoss_input" value="10.00">
+            </div>
+            <div class="input-group">
+                <label>Estratégia</label>
+                <select id="estrategia_input">
+                    <option value="none">Mão Fixa</option>
+                    <option value="martingale" selected>Martingale</option>
+                    <option value="soros">Soros</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Mult. Martingale</label>
+                <input type="number" id="mult_input" value="2.1" step="0.1">
+            </div>
+            <button class="btn-verde" onclick="conectarAgora()">CONECTAR CONTA</button>
+            <button id="btnAuto" class="btn-auto" onclick="toggleRobo()">LIGAR MODO AUTOMÁTICO</button>
+            <button class="btn-reset" onclick="resetarTudo()">RESETAR SESSÃO</button>
+        </div>
+
+        <div class="main-panel">
+            <div id="alerta_resultado"></div>
+            <div class="saldo-container">
+                <div style="font-size: 12px; color: #888;">SALDO ATUAL</div>
+                <div id="balance_display" class="saldo-valor">0.00 USD</div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div style="font-size: 10px; color: #aaa;">WINS / LOSSES</div>
+                    <div style="font-size: 24px; font-weight: bold;"><span class="win" id="wins_display">0</span> / <span class="loss" id="losses_display">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 10px; color: #aaa;">LUCRO DA SESSÃO</div>
+                    <div id="profit_display" style="font-size: 24px; font-weight: bold;">0.00</div>
+                </div>
+            </div>
+            <div id="preco">0.0000</div>
+            <div id="log">Aguardando login...</div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let roboLigado = false, conectado = false;
+        let operacaoEmCurso = false; 
+        let wins = 0, losses = 0, lucroTotal = 0.0;
+        let historicoContratos = new Set();
+        let stakeAtual = 1.0;
+
+        // FUNÇÃO MODIFICADA PARA WSS (CONEXÃO SEGURA)
+        function initWS() {
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+            
+            ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
+            
+            ws.onclose = () => {
+                conectado = false;
+                document.getElementById('status_display').innerHTML = "Status: Desconectado 🔴";
+                setTimeout(initWS, 2000);
+            };
+
+            ws.onerror = (err) => {
+                console.error("Erro no WebSocket:", err);
+            };
+        }
+        initWS();
+
+        function handleMessage(res) {
+            if (res.error) {
+                if (res.error.code === 'AlreadySubscribed') return;
+                escreverLog(`<span class="loss">Erro: ${res.error.message}</span>`);
+                operacaoEmCurso = false; 
+                return;
+            }
+            if (res.authorize) {
+                conectado = true;
+                document.getElementById('status_display').innerHTML = "Status: Online 🟢";
+                escreverLog("CONTA CONECTADA!");
+                ws.send(JSON.stringify({action: "watch"}));
+            }
+            if (res.balance) {
+                document.getElementById('balance_display').innerText = res.balance.balance.toFixed(2) + " " + res.balance.currency;
+            }
+            if (res.tick) {
+                let p = res.tick.quote;
+                document.getElementById('preco').innerText = p;
+                if (roboLigado && !operacaoEmCurso && p.toString().slice(-1) === "7") {
+                    executarCompra();
+                }
+            }
+            if (res.proposal_open_contract) {
+                let c = res.proposal_open_contract;
+                if ((c.is_completed || c.status !== "open") && !historicoContratos.has(c.contract_id)) {
+                    historicoContratos.add(c.contract_id);
+                    processarResultado(c);
+                    operacaoEmCurso = false; 
+                }
+            }
+        }
+
+        function conectarAgora() {
+            let tk = document.getElementById('token_input').value.trim();
+            if(!tk) return alert("Insira seu Token!");
+            ws.send(JSON.stringify({action: "auth", token: tk}));
+        }
+
+        function executarCompra() {
+            let winM = parseFloat(document.getElementById('stopWin_input').value);
+            let lossM = parseFloat(document.getElementById('stopLoss_input').value);
+
+            if (lucroTotal >= winM || lucroTotal <= (lossM * -1)) {
+                exibirAlerta(lucroTotal >= winM ? 'win' : 'loss', lucroTotal >= winM ? '🏆 META ALCANÇADA!' : '🚫 STOP LOSS ATINGIDO!');
+                pararBot(); return;
+            }
+
+            operacaoEmCurso = true; 
+            ws.send(JSON.stringify({action: "buy", stake: stakeAtual}));
+            escreverLog(`Entrada enviada: $${stakeAtual.toFixed(2)} (Aguardando finalização...)`);
+        }
+
+        function processarResultado(c) {
+            let p = parseFloat(c.profit) || 0;
+            let inicial = parseFloat(document.getElementById('stake_input').value);
+            let mult = parseFloat(document.getElementById('mult_input').value) || 2.1;
+            let est = document.getElementById('estrategia_input').value;
+
+            if (p > 0) {
+                wins++;
+                escreverLog(`<span class="win">💰 WIN: +$${p.toFixed(2)}</span>`);
+                stakeAtual = (est === "soros") ? Number((inicial + p).toFixed(2)) : inicial;
+            } else {
+                losses++;
+                escreverLog(`<span class="loss">❌ LOSS: -$${Math.abs(p).toFixed(2)}</span>`);
+                if (est === "martingale") {
+                    stakeAtual = Number((stakeAtual * mult).toFixed(2));
+                } else {
+                    stakeAtual = inicial;
+                }
+            }
+            lucroTotal = Number((lucroTotal + p).toFixed(2));
+            atualizarPainel();
+        }
+
+        function atualizarPainel() {
+            document.getElementById('wins_display').innerText = wins;
+            document.getElementById('losses_display').innerText = losses;
+            let prof = document.getElementById('profit_display');
+            prof.innerText = lucroTotal.toFixed(2);
+            prof.className = lucroTotal >= 0 ? "win" : "loss";
+        }
+
+        function exibirAlerta(tipo, msg) {
+            const el = document.getElementById('alerta_resultado');
+            el.style.display = 'block';
+            el.innerText = msg;
+            el.style.background = tipo === 'win' ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)';
+            el.style.border = `2px solid ${tipo === 'win' ? 'var(--success)' : 'var(--danger)'}`;
+            el.style.color = tipo === 'win' ? 'var(--success)' : 'var(--danger)';
+        }
+
+        function toggleRobo() {
+            if(!conectado) return alert("Conecte a conta primeiro!");
+            roboLigado = !roboLigado;
+            let btn = document.getElementById('btnAuto');
+            btn.innerText = roboLigado ? "PARAR ROBÔ" : "LIGAR MODO AUTOMÁTICO";
+            btn.classList.toggle('ligado', roboLigado);
+            if(roboLigado) {
+                stakeAtual = parseFloat(document.getElementById('stake_input').value);
+                operacaoEmCurso = false;
+                document.getElementById('alerta_resultado').style.display = 'none';
+                escreverLog("MODO AUTOMÁTICO ATIVADO");
+            }
+        }
+
+        function resetarTudo() {
+            if(roboLigado) return alert("Pare o robô antes.");
+            wins = 0; losses = 0; lucroTotal = 0.0;
+            historicoContratos.clear();
+            atualizarPainel();
+            escreverLog("Sessão Reiniciada.");
+        }
+
+        function pararBot() {
+            roboLigado = false;
+            let btn = document.getElementById('btnAuto');
+            btn.innerText = "LIGAR MODO AUTOMÁTICO";
+            btn.classList.remove('ligado');
+        }
+
+        function escreverLog(t) {
+            const l = document.getElementById('log');
+            const data = new Date().toLocaleTimeString();
+            l.innerHTML = `<div><small style="color:#666">[${data}]</small> > ${t}</div>` + l.innerHTML;
+        }
+    </script>
+</body>
+</html>
