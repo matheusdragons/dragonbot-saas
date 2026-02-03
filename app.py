@@ -5,8 +5,10 @@ import websockets
 from flask import Flask, render_template
 from flask_sock import Sock
 
-# Forçamos o Flask a encontrar a pasta templates no diretório atual
-app = Flask(__name__, template_folder='templates')
+# Pega o caminho absoluto da pasta onde o app.py está
+base_dir = os.path.dirname(os.path.abspath(__file__))
+# Força o Flask a olhar para a pasta 'templates' no lugar certo
+app = Flask(__name__, template_folder=os.path.join(base_dir, 'templates'))
 sock = Sock(app)
 
 @app.route('/')
@@ -21,14 +23,12 @@ async def deriv_proxy(client_ws):
                 async for message in client_ws:
                     await deriv_ws.send(message)
             except: pass
-
         async def forward_to_client():
             try:
                 async for message in deriv_ws:
-                    # ESTA LINHA É O QUE FAZ O SALDO E PAINÉIS FUNCIONAREM
+                    # ISSO GARANTE A ATUALIZAÇÃO DO SALDO E PAINÉIS
                     await client_ws.send(message)
             except: pass
-
         await asyncio.gather(forward_to_deriv(), forward_to_client())
 
 @sock.route('/ws')
