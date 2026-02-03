@@ -1,15 +1,27 @@
-import os
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
 
-# Configuração simples e direta
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__)
 
+# Rota da Página de Vendas
 @app.route('/')
-def index():
-    # Renderiza o arquivo que você me enviou
-    return render_template('index.html')
+def landing():
+    return render_template('landing.html')
+
+# Rota de Login
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
+# Rota de Cadastro
+@app.route('/cadastro')
+def cadastro():
+    return render_template('cadastro.html')
+
+# Rota do Painel do Robô (Protegida)
+@app.route('/dashboard')
+def dashboard():
+    # Aqui ficará a página em branco para o novo robô
+    return render_template('dashboard.html')
 
 if __name__ == '__main__':
-    # O Railway exige que a porta seja lida da variável de ambiente
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
