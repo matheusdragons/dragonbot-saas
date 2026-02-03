@@ -1,83 +1,73 @@
-import os
-import json
 import asyncio
+import json
+import os
 import websockets
-from fastapi import FastAPI, WebSocket
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from flask import Flask, render_template
+from threading import Thread
 
-app = FastAPI()
+app = Flask(__name__)
 
-# Definição de pastas
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Cria as pastas caso não existam no GitHub
-for pasta in [TEMPLATES_DIR, STATIC_DIR]:
-    if not os.path.exists(pasta):
-        os.makedirs(pasta)
+async def deriv_proxy(client_ws):
+    # Conecta à Deriv
+    uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089" # Use seu APP_ID se tiver
+    async with websockets.connect(uri) as deriv_ws:
+        
+        async def forward_to_deriv():
+            try:
+                async for message in client_ws:
+                    data = json.loads(message)
+                    action = data.get("action")
+                    
+                    if action == "auth":
+                        await deriv_ws.send(json.dumps({"authorize": data["token"]}))
+                    
+                    elif action == "watch":
+                        await deriv_ws.send(json.dumps({"ticks": "R_100"}))
+                        await deriv_ws.send(json.dumps({"balance": 1, "subscribe": 1}))
+                    
+                    elif action == "balance":
+                        await deriv_ws.send(json.dumps({"balance": 1}))
 
-# Monta a pasta de imagens/logos
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+                    elif action == "buy":
+                        # Envia a ordem e se inscreve para receber o resultado (subscribe: 1)
+                        await deriv_ws.send(json.dumps({
+                            "buy": 1,
+                            "price": float(data["stake"]),
+                            "parameters": {
+                                "amount": float(data["stake"]),
+                                "basis": "stake",
+                                "contract_type": "DIGITDIFF",
+                                "currency": "USD",
+                                "duration": 1,
+                                "duration_unit": "t",
+                                "symbol": "R_100",
+                                "barrier": "7"
+                            },
+                            "subscribe": 1 
+                        }))
+            except: pass
 
-# --- ROTAS DO SAAS ---
+        async def forward_to_client():
+            try:
+                async for message in deriv_ws:
+                    # REPASSA TUDO QUE A DERIV DIZER PARA O NAVEGADOR
+                    await client_ws.send(message)
+            except: pass
 
-@app.get("/")
-async def home():
-    """Página de entrada (Landing Page)"""
-    path = os.path.join(TEMPLATES_DIR, "home.html")
-    if os.path.exists(path):
-        return FileResponse(path)
-    return HTMLResponse("<h1>DragonBot SaaS</h1><p>Home em construção. Acesse /dashboard</p>")
+        await asyncio.gather(forward_to_deriv(), forward_to_client())
 
-@app.get("/dashboard")
-async def dashboard():
-    """Página do Robô (Layout Original)"""
-    return FileResponse(os.path.join(TEMPLATES_DIR, "index.html"))
+# Rota do WebSocket (SaaS)
+from flask_sock import Sock
+sock = Sock(app)
 
-# --- CONEXÃO WEBSOCKET (PONTE COM A DERIV) ---
+@sock.route('/ws')
+def handle_ws(ws):
+    asyncio.run(deriv_proxy(ws))
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    
-    # Conecta à Deriv via servidor para evitar bloqueios de IP/Navegador
-    deriv_url = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
-    
-    try:
-        async with websockets.connect(deriv_url) as deriv_ws:
-            # Envia dados da Deriv para o Dashboard
-            async def para_dashboard():
-                try:
-                    async for mensagem in deriv_ws:
-                        await websocket.send_text(mensagem)
-                except: pass
-
-            asyncio.create_task(para_dashboard())
-
-            # Recebe comandos do Dashboard e manda para a Deriv
-            while True:
-                comando = await websocket.receive_text()
-                dados = json.loads(comando)
-                
-                if dados.get("action") == "auth":
-                    await deriv_ws.send(json.dumps({"authorize": dados["token"]}))
-                    await deriv_ws.send(json.dumps({"balance": 1, "subscribe": 1}))
-                
-                elif dados.get("action") == "watch":
-                    await deriv_ws.send(json.dumps({"ticks": "R_100", "subscribe": 1}))
-                    await deriv_ws.send(json.dumps({"proposal_open_contract": 1, "subscribe": 1}))
-                
-                elif dados.get("action") == "buy":
-                    # Estratégia Diferencial (Dígito 7)
-                    await deriv_ws.send(json.dumps({
-                        "buy": 1, "price": float(dados["stake"]),
-                        "parameters": {
-                            "amount": float(dados["stake"]), "basis": "stake",
-                            "contract_type": "DIGITDIFF", "currency": "USD",
-                            "duration": 1, "duration_unit": "t", "symbol": "R_100", "barrier": "7"
-                        }
-                    }))
-    except Exception as e:
-        print(f"Erro na ponte: {e}")
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
