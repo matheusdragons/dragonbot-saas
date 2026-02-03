@@ -12,12 +12,14 @@
 </head>
 <body>
     <div class="card">
-        <h2 style="color:#00ff88">Parabéns pela Compra!</h2>
-        <p>Crie seus dados de acesso abaixo:</p>
-        <input type="text" placeholder="Nome Completo">
-        <input type="email" placeholder="E-mail">
-        <input type="password" placeholder="Crie uma Senha">
-        <button onclick="alert('Conta criada! Faça login.'); window.location.href='/login'">FINALIZAR CADASTRO</button>
+        <h2 style="color:#00ff88">Finalizar Cadastro</h2>
+        <p>Use o mesmo e-mail da compra na Kirvano.</p>
+        
+        <form action="/cadastro" method="POST">
+            <input type="email" name="email" placeholder="Seu Melhor E-mail" required>
+            <input type="password" name="password" placeholder="Crie uma Senha Forte" required>
+            <button type="submit">CRIAR MEU ACESSO</button>
+        </form>
     </div>
 </body>
 </html>
