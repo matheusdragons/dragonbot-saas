@@ -5,19 +5,18 @@ import websockets
 from flask import Flask, render_template
 from flask_sock import Sock
 
-app = Flask(__name__)
+# Pega o caminho real de onde o arquivo app.py está
+base_dir = os.path.dirname(os.path.abspath(__file__))
+template_dir = os.path.join(base_dir, 'templates')
+
+app = Flask(__name__, template_folder=template_dir)
 sock = Sock(app)
 
 @app.route('/')
 def index():
-    # Isso verifica se a pasta templates existe e o que tem dentro dela
-    if not os.path.exists('templates'):
-        return "ERRO: Pasta 'templates' não encontrada. Verifique se o nome está todo em minúsculo no GitHub.", 404
-    
-    files = os.listdir('templates')
-    if 'index.html' not in files:
-        return f"ERRO: 'index.html' não encontrado dentro da pasta. Arquivos vistos: {files}", 404
-
+    # Isso vai nos dizer no LOG se a pasta realmente existe
+    if not os.path.exists(template_dir):
+        print(f"ERRO: Pasta templates não encontrada em {template_dir}")
     return render_template('index.html')
 
 async def deriv_proxy(client_ws):
@@ -29,7 +28,7 @@ async def deriv_proxy(client_ws):
                     await deriv_ws.send(message)
             async def forward_to_client():
                 async for message in deriv_ws:
-                    # Garante o repasse para atualizar saldo e painéis
+                    # REPASSA RESULTADOS PARA ATUALIZAR SALDO E PAINÉIS
                     await client_ws.send(message)
             await asyncio.gather(forward_to_deriv(), forward_to_client())
     except: pass
