@@ -5,9 +5,8 @@ import websockets
 from flask import Flask, render_template
 from flask_sock import Sock
 
-# Pega o caminho absoluto da pasta onde o app.py está
+# Configuração de caminhos para evitar erro 404
 base_dir = os.path.dirname(os.path.abspath(__file__))
-# Força o Flask a olhar para a pasta 'templates' no lugar certo
 app = Flask(__name__, template_folder=os.path.join(base_dir, 'templates'))
 sock = Sock(app)
 
@@ -16,20 +15,26 @@ def index():
     return render_template('index.html')
 
 async def deriv_proxy(client_ws):
+    # Conexão direta com o servidor da Deriv
     uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
-    async with websockets.connect(uri) as deriv_ws:
-        async def forward_to_deriv():
-            try:
+    try:
+        async with websockets.connect(uri) as deriv_ws:
+            async def forward_to_deriv():
                 async for message in client_ws:
-                    await deriv_ws.send(message)
-            except: pass
-        async def forward_to_client():
-            try:
+                    data = json.loads(message)
+                    # Adiciona 'subscribe' automaticamente para garantir atualização do painel
+                    if data.get("action") == "buy":
+                        data["subscribe"] = 1
+                    await deriv_ws.send(json.dumps(data))
+
+            async def forward_to_client():
                 async for message in deriv_ws:
-                    # ISSO GARANTE A ATUALIZAÇÃO DO SALDO E PAINÉIS
+                    # Repassa saldo, ticks e resultados (WINS/LOSSES) para o index.html
                     await client_ws.send(message)
-            except: pass
-        await asyncio.gather(forward_to_deriv(), forward_to_client())
+
+            await asyncio.gather(forward_to_deriv(), forward_to_client())
+    except Exception as e:
+        print(f"Erro de conexão: {e}")
 
 @sock.route('/ws')
 def handle_ws(ws):
