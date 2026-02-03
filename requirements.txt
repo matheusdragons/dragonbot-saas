@@ -1,5 +1,2 @@
 flask
-flask-sock
-websockets
 gunicorn
-uvicorn
