@@ -5,9 +5,8 @@ import websockets
 from flask import Flask, render_template
 from flask_sock import Sock
 
-# Pega o caminho exato onde o app.py está rodando
-base_dir = os.path.abspath(os.path.dirname(__file__))
-# Força o Flask a olhar para a pasta 'templates' no local correto
+# Configuração absoluta para evitar o erro "Not Found"
+base_dir = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, template_folder=os.path.join(base_dir, 'templates'))
 sock = Sock(app)
 
@@ -16,21 +15,26 @@ def index():
     return render_template('index.html')
 
 async def deriv_proxy(client_ws):
+    # Conexão com o servidor real da corretora
     uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
     try:
         async with websockets.connect(uri) as deriv_ws:
-            async def forward():
-                async for msg in client_ws:
-                    data = json.loads(msg)
-                    if data.get("action") == "buy": data["subscribe"] = 1
+            async def forward_to_deriv():
+                async for message in client_ws:
+                    data = json.loads(message)
+                    # Força o 'subscribe' para garantir que os resultados cheguem ao painel
+                    if data.get("action") == "buy":
+                        data["subscribe"] = 1
                     await deriv_ws.send(json.dumps(data))
-            async def backward():
-                async for msg in deriv_ws:
-                    # Isso garante que Wins/Losses e Saldo cheguem ao painel
-                    await client_ws.send(msg)
-            await asyncio.gather(forward(), backward())
+
+            async def forward_to_client():
+                async for message in deriv_ws:
+                    # Repassa saldo, lucro e status da operação para o index.html
+                    await client_ws.send(message)
+
+            await asyncio.gather(forward_to_deriv(), forward_to_client())
     except Exception as e:
-        print(f"Erro de conexão: {e}")
+        print(f"Erro na ponte de conexão: {e}")
 
 @sock.route('/ws')
 def handle_ws(ws):
