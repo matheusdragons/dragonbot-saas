@@ -9,14 +9,22 @@
         h2 { margin-bottom: 30px; color: #00d9ff; }
         input { width: 100%; padding: 14px; margin: 12px 0; border-radius: 10px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; outline: none; }
         button { width: 100%; padding: 16px; background: #00d9ff; color: black; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; }
+        .error { color: #ff4444; font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Entrar no Painel</h2>
-        <input type="email" placeholder="E-mail de compra">
-        <input type="password" placeholder="Sua senha">
-        <button onclick="window.location.href='/dashboard'">ACESSAR SISTEMA</button>
+        
+        <form action="/login" method="POST">
+            <input type="email" name="email" placeholder="E-mail de compra" required>
+            <input type="password" name="password" placeholder="Sua senha" required>
+            <button type="submit">ACESSAR SISTEMA</button>
+        </form>
+        
+        <div style="margin-top: 15px; font-size: 12px;">
+            Novo por aqui? <a href="/cadastro" style="color:#00ff88; text-decoration:none;">Crie sua conta</a>
+        </div>
     </div>
 </body>
 </html>
