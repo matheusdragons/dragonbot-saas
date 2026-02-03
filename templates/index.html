@@ -1,133 +1,24 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>SaaS Bot Pro - Dashboard Trader</title>
-    <style>
-        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4444; --bg: #0b0e14; --card: #161a23; }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        .header { width: 100%; height: 80px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-bottom: 1px solid #2d333f; }
-        .container { display: flex; gap: 20px; max-width: 1250px; margin: 20px auto; padding: 0 20px; }
-        .sidebar { width: 350px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #2d333f; }
-        .main-panel { flex: 1; background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #2d333f; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
-        .saldo-container { background: #0b0e14; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); text-align: center; margin-bottom: 20px; }
-        .saldo-valor { font-size: 36px; font-weight: bold; color: var(--primary); }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: #1f242e; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #333; }
-        .win { color: var(--success); } .loss { color: var(--danger); }
-        button { width: 100%; padding: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; border: none; text-transform: uppercase; margin-top: 10px; }
-        .btn-verde { background: var(--success); color: #000; }
-        .btn-auto { background: #ffaa00; color: white; }
-        .btn-auto.ligado { background: var(--danger); }
-        #preco { font-size: 5em; color: var(--success); text-align: center; font-weight: 900; margin: 20px 0; font-family: monospace; }
-        #log { background: #000; border-radius: 10px; padding: 15px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 12px; border: 1px solid #222; }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <div style="color: var(--primary); font-weight: bold; font-size: 20px;">DRAGON BOT V1</div>
-        <div id="status_display">Status: Desconectado 🔴</div>
-    </header>
+function initWS() {
+    // CONEXÃO DIRETA COM A DERIV (Como funcionava no início)
+    // Usamos o App ID 1089 que é o padrão da corretora
+    ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
 
-    <div class="container">
-        <div class="sidebar">
-            <div class="input-group">
-                <label>Token API Deriv</label>
-                <input type="password" id="token_input" placeholder="Cole seu token aqui">
-            </div>
-            <div class="input-group">
-                <label>Entrada (Stake)</label>
-                <input type="number" id="stake_input" value="1.00">
-            </div>
-            <div class="input-group">
-                <label>Estratégia</label>
-                <select id="estrategia_input">
-                    <option value="martingale">Martingale</option>
-                    <option value="soros">Soros</option>
-                </select>
-            </div>
-            <button class="btn-verde" onclick="conectarAgora()">CONECTAR CONTA</button>
-            <button id="btnAuto" class="btn-auto" onclick="toggleRobo()">LIGAR MODO AUTOMÁTICO</button>
-        </div>
+    ws.onopen = () => {
+        escreverLog("Conectado ao servidor da Deriv! Insira seu Token.");
+    };
 
-        <div class="main-panel">
-            <div class="saldo-container">
-                <div id="balance_display" class="saldo-valor">0.00 USD</div>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card">WINS: <span id="wins_display" class="win">0</span></div>
-                <div class="stat-card">LOSSES: <span id="losses_display" class="loss">0</span></div>
-            </div>
-            <div id="preco">0.0000</div>
-            <div id="log">Aguardando comando...</div>
-        </div>
-    </div>
+    ws.onmessage = (event) => {
+        const res = JSON.parse(event.data);
+        handleMessage(res); // Usa a sua função handleMessage original
+    };
 
-    <script>
-        let ws;
-        let conectado = false;
-        let roboLigado = false;
+    ws.onclose = () => {
+        conectado = false;
+        document.getElementById('status_display').innerHTML = "Status: Desconectado 🔴";
+        setTimeout(initWS, 2000);
+    };
 
-        function initWS() {
-            // CORREÇÃO CRÍTICA: Detecta se é HTTPS e usa WSS
-            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = `${protocol}://${window.location.host}/ws`;
-            
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                escreverLog("Servidor pronto. Insira o Token.");
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.authorize) {
-                    conectado = true;
-                    document.getElementById('status_display').innerHTML = "Status: Online 🟢";
-                    document.getElementById('balance_display').innerText = data.authorize.balance + " USD";
-                    escreverLog("CONECTADO À DERIV COM SUCESSO!");
-                    ws.send(JSON.stringify({action: "watch"}));
-                }
-                if (data.tick) {
-                    document.getElementById('preco').innerText = data.tick.quote;
-                }
-                if (data.error) {
-                    escreverLog(`<span class="loss">Erro: ${data.error.message}</span>`);
-                }
-            };
-
-            ws.onclose = () => {
-                document.getElementById('status_display').innerHTML = "Status: Reconectando... 🟡";
-                setTimeout(initWS, 3000);
-            };
-        }
-
-        function conectarAgora() {
-            const tk = document.getElementById('token_input').value.trim();
-            if (!tk) return alert("Por favor, insira o Token!");
-            
-            escreverLog("Tentando autorizar...");
-            // Envia para o app.py processar
-            ws.send(JSON.stringify({action: "auth", token: tk}));
-        }
-
-        function escreverLog(t) {
-            const log = document.getElementById('log');
-            log.innerHTML = `<div>> ${t}</div>` + log.innerHTML;
-        }
-
-        function toggleRobo() {
-            if (!conectado) return alert("Conecte antes de ligar o bot!");
-            roboLigado = !roboLigado;
-            const btn = document.getElementById('btnAuto');
-            btn.innerText = roboLigado ? "PARAR ROBÔ" : "LIGAR MODO AUTOMÁTICO";
-            btn.classList.toggle('ligado', roboLigado);
-        }
-
-        initWS();
-    </script>
-</body>
-</html>
+    ws.onerror = (error) => {
+        console.error("Erro na conexão:", error);
+    };
+}
