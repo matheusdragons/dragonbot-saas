@@ -41,8 +41,8 @@
                     <option value="soros">Soros</option>
                 </select>
             </div>
-            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_field" value="1.00"></div>
-            <div class="input-group"><label>Multiplicador</label><input type="number" id="gale_factor" value="2.0"></div>
+            <div class="input-group"><label>Stake Inicial ($)</label><input type="number" id="stake_field" value="1.00" step="0.1"></div>
+            <div class="input-group"><label>Multiplicador</label><input type="number" id="gale_factor" value="2.0" step="0.1"></div>
             <div class="input-group"><label>Stop Win ($)</label><input type="number" id="stopwin_field" value="5.00"></div>
             <div class="input-group"><label>Stop Loss ($)</label><input type="number" id="stoploss_field" value="10.00"></div>
             
@@ -53,7 +53,7 @@
 
         <div class="main">
             <div style="border: 2px solid var(--primary); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                <small style="color:#888">SALDO DA CORRETORA</small>
+                <small style="color:#888">SALDO ATUALIZADO</small>
                 <div id="balance_val" style="font-size: 28px; font-weight: bold; color: var(--primary);">0.00 USD</div>
             </div>
 
@@ -64,7 +64,7 @@
 
             <div class="stat-box">LUCRO ACUMULADO<br><span id="profit_val" style="font-size: 26px; font-weight: bold;">0.00</span></div>
             <div id="preco">0.0000</div>
-            <div id="log"></div>
+            <div id="log">Aguardando conexão...</div>
         </div>
     </div>
 
@@ -72,12 +72,15 @@
         let ws;
         let is_running = false, is_trading = false, is_auth = false;
         let v_wins = 0, v_losses = 0, v_profit = 0.0, v_stake = 1.0;
-        let last_contract_id = null;
+        let processed_contracts = new Set(); // Evita duplicar o mesmo resultado
 
         function logMsg(msg, colorClass = "") {
             const logDiv = document.getElementById('log');
             const time = new Date().toLocaleTimeString();
-            logDiv.innerHTML = `<div class="${colorClass}">[${time}] ${msg}</div>` + logDiv.innerHTML;
+            const newLog = document.createElement('div');
+            newLog.className = colorClass;
+            newLog.innerHTML = `[${time}] ${msg}`;
+            logDiv.insertBefore(newLog, logDiv.firstChild);
         }
 
         function iniciarConexao() {
@@ -90,18 +93,21 @@
             ws.onmessage = (e) => {
                 const data = JSON.parse(e.data);
 
+                // 1. Autenticação
                 if (data.authorize) {
                     is_auth = true;
                     document.getElementById('status_ws').innerHTML = "Status: Online 🟢";
                     document.getElementById('balance_val').innerText = data.authorize.balance.toFixed(2) + " USD";
-                    logMsg("CONTA AUTORIZADA COM SUCESSO!", "win-text");
+                    logMsg("CONTA CONECTADA!", "win-text");
                     ws.send(JSON.stringify({action: "watch"}));
                 }
 
+                // 2. Saldo (Atualização em tempo real)
                 if (data.balance) {
                     document.getElementById('balance_val').innerText = data.balance.balance.toFixed(2) + " USD";
                 }
 
+                // 3. Ticks e Gatilho
                 if (data.tick) {
                     document.getElementById('preco').innerText = data.tick.quote;
                     if (is_running && !is_trading && data.tick.quote.toString().slice(-1) === "7") {
@@ -109,85 +115,81 @@
                     }
                 }
 
+                // 4. PROCESSAMENTO DE RESULTADO (AQUI ESTAVA O ERRO)
                 if (data.proposal_open_contract) {
-                    const c = data.proposal_open_contract;
-                    if (c.is_completed && c.contract_id !== last_contract_id) {
-                        last_contract_id = c.contract_id;
-                        processarResultadoReal(c);
+                    const contract = data.proposal_open_contract;
+                    // Se o contrato terminou e ainda não processamos este ID
+                    if (contract.is_completed && !processed_contracts.has(contract.contract_id)) {
+                        processed_contracts.add(contract.contract_id);
+                        handleFinalResult(contract);
                     }
                 }
             };
         }
 
         function executarEntrada() {
-            if (v_profit >= parseFloat(document.getElementById('stopwin_field').value) || 
-                v_profit <= (parseFloat(document.getElementById('stoploss_field').value) * -1)) {
-                logMsg("META ALCANÇADA! SISTEMA PAUSADO.", "win-text");
-                is_running = false; atualizarBotao(); return;
-            }
-
             is_trading = true;
-            logMsg(`ENVIANDO ORDEM: Stake $${v_stake.toFixed(2)}`, "win-text");
+            logMsg(`ENVIANDO ORDEM: $${v_stake.toFixed(2)}`, "win-text");
             ws.send(JSON.stringify({ action: "buy", stake: v_stake.toString() }));
             
-            // Segurança: destrava o robô se a corretora não responder em 10s
-            setTimeout(() => { if(is_trading) is_trading = false; }, 10000);
+            // Destrava após 10s caso a corretora suma
+            setTimeout(() => { is_trading = false; }, 10000);
         }
 
-        function processarResultadoReal(c) {
-            const p = parseFloat(c.profit);
-            v_profit += p;
+        function handleFinalResult(c) {
+            const profit = parseFloat(c.profit);
+            const type = document.getElementById('strategy_type').value;
+            const baseStake = parseFloat(document.getElementById('stake_field').value);
 
-            if (p > 0) {
+            v_profit += profit;
+
+            if (profit > 0) {
                 v_wins++;
-                logMsg(`[WIN] RESULTADO: +$${p.toFixed(2)}`, "win-text");
-                if (document.getElementById('strategy_type').value === "soros") v_stake += p;
-                else v_stake = parseFloat(document.getElementById('stake_field').value);
+                logMsg(`[WIN] RESULTADO: +$${profit.toFixed(2)}`, "win-text");
+                if (type === "soros") v_stake += profit;
+                else v_stake = baseStake;
             } else {
                 v_losses++;
-                logMsg(`[LOSS] RESULTADO: -$${Math.abs(p).toFixed(2)}`, "loss-text");
-                if (document.getElementById('strategy_type').value === "martingale") v_stake *= parseFloat(document.getElementById('gale_factor').value);
-                else v_stake = parseFloat(document.getElementById('stake_field').value);
+                logMsg(`[LOSS] RESULTADO: -$${Math.abs(profit).toFixed(2)}`, "loss-text");
+                if (type === "martingale") v_stake *= parseFloat(document.getElementById('gale_factor').value);
+                else v_stake = baseStake;
             }
 
-            // ATUALIZAÇÃO DOS PAINÉIS
-            document.getElementById('wins_val').innerText = v_wins;
-            document.getElementById('losses_val').innerText = v_losses;
-            document.getElementById('profit_val').innerText = v_profit.toFixed(2);
-            document.getElementById('profit_val').className = v_profit >= 0 ? "win-text" : "loss-text";
+            // ATUALIZAÇÃO FORÇADA DE TODOS OS PAINÉIS
+            updateUI();
 
-            // SOLICITA SALDO ATUALIZADO PARA A CORRETORA
+            // PEDE SALDO NOVO PARA A CORRETORA
             ws.send(JSON.stringify({action: "balance"}));
 
-            // LIBERA PARA PRÓXIMA ENTRADA
+            // LIBERA O LOOPING
             setTimeout(() => { is_trading = false; }, 500);
         }
 
-        function toggleRobot() {
-            if(!is_auth) return alert("Conecte a conta primeiro!");
-            is_running = !is_running;
-            atualizarBotao();
-            if(is_running) {
-                v_stake = parseFloat(document.getElementById('stake_field').value);
-                is_trading = false;
-                logMsg("MOTOR LIGADO - Buscando Dígito 7...");
-            } else {
-                logMsg("MOTOR DESLIGADO.");
-            }
+        function updateUI() {
+            document.getElementById('wins_val').textContent = v_wins;
+            document.getElementById('losses_val').textContent = v_losses;
+            document.getElementById('profit_val').textContent = v_profit.toFixed(2);
+            document.getElementById('profit_val').style.color = v_profit >= 0 ? "#00ff88" : "#ff4444";
         }
 
-        function atualizarBotao() {
+        function toggleRobot() {
+            if(!is_auth) return alert("Conecte primeiro!");
+            is_running = !is_running;
             const btn = document.getElementById('btnPlay');
             btn.innerText = is_running ? "PARAR ROBÔ" : "LIGAR ROBÔ";
             btn.className = is_running ? "btn btn-start active" : "btn btn-start";
+            if(is_running) {
+                v_stake = parseFloat(document.getElementById('stake_field').value);
+                is_trading = false;
+                logMsg("BUSCANDO DÍGITO 7...");
+            }
         }
 
         function resetStats() {
             v_wins = 0; v_losses = 0; v_profit = 0.0;
-            document.getElementById('wins_val').innerText = "0";
-            document.getElementById('losses_val').innerText = "0";
-            document.getElementById('profit_val').innerText = "0.00";
-            logMsg("Estatísticas resetadas.");
+            processed_contracts.clear();
+            updateUI();
+            logMsg("Estatísticas zeradas.");
         }
     </script>
 </body>
