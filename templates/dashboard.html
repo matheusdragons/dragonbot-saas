@@ -2,22 +2,35 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel do Trader - Dragon Bot</title>
+    <title>Painel - Dragon Bot</title>
     <style>
         body { background: #0b0e14; color: white; font-family: sans-serif; margin: 0; }
-        .nav { background: #161a23; padding: 20px 40px; border-bottom: 1px solid #2d333f; display: flex; justify-content: space-between; align-items: center; }
-        .main { padding: 100px; text-align: center; }
-        .placeholder-box { border: 2px dashed #333; padding: 100px; border-radius: 30px; color: #444; font-size: 24px; font-weight: bold; }
+        .header { background: #161a23; padding: 20px; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        .container { padding: 40px; display: flex; gap: 20px; }
+        .config-box { background: #161a23; padding: 20px; border-radius: 15px; width: 300px; border: 1px solid #2d333f; }
+        .robot-box { flex: 1; background: #161a23; border-radius: 15px; padding: 40px; text-align: center; border: 1px dashed #444; }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #0b0e14; color: white; border: 1px solid #333; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <div style="font-weight: bold; color: #00d9ff;">DRAGON BOT DASHBOARD</div>
-        <div style="font-size: 14px; color: #888;">Bem-vindo, Trader</div>
+    <div class="header">
+        <div style="font-weight: bold;">DRAGON BOT - DASHBOARD</div>
+        <a href="/logout" style="color: #ff4444; text-decoration: none;">Sair</a>
     </div>
-    <div class="main">
-        <div class="placeholder-box">
-            [ O NOVO ROBÔ SERÁ CONSTRUÍDO AQUI ]
+
+    <div class="container">
+        <div class="config-box">
+            <h3>Segurança</h3>
+            <p style="font-size: 11px; color: #888;">Mude sua senha padrão aqui.</p>
+            <form action="/alterar-senha" method="POST">
+                <input type="password" name="nova_senha" placeholder="Nova Senha" required>
+                <button type="submit" style="width: 100%; padding: 10px; background: #00ff88; border: none; font-weight: bold; border-radius: 5px; cursor: pointer;">ATUALIZAR SENHA</button>
+            </form>
+        </div>
+
+        <div class="robot-box">
+            <h1 style="color: #333;">O ROBÔ SERÁ INTEGRADO AQUI</h1>
+            <p style="color: #555;">Sua assinatura está ATIVA.</p>
         </div>
     </div>
 </body>
