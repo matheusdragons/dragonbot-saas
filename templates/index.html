@@ -108,6 +108,7 @@
                     const price = data.tick.quote;
                     document.getElementById('preco').innerText = price;
                     const lastDigit = price.toString().slice(-1);
+                    // MOTOR DE LOOP: Só entra se não estiver em uma trade aberta
                     if (is_running && !is_trading && lastDigit === "7") { executarCompra(); }
                 }
                 if (data.proposal_open_contract && data.proposal_open_contract.is_completed) {
@@ -126,18 +127,14 @@
 
             if (v_profit >= winLimit || v_profit <= (lossLimit * -1)) {
                 logMsg("META ALCANÇADA! PARANDO ROBÔ.", "win-text");
-                toggleRobot();
+                is_running = false;
+                atualizarBotao();
                 return;
             }
 
-            is_trading = true;
-            logMsg(`Enviando Ordem Real: Stake $${v_stake.toFixed(2)}...`, "win-text");
-            
-            // COMANDO CORRIGIDO PARA O APP.PY EXECUTAR NA DERIV
-            ws.send(JSON.stringify({
-                action: "buy", 
-                stake: v_stake.toString()
-            }));
+            is_trading = true; // Bloqueia novas entradas até essa acabar
+            logMsg(`ORDEM ENVIADA: $${v_stake.toFixed(2)}`, "win-text");
+            ws.send(JSON.stringify({ action: "buy", stake: v_stake.toString() }));
         }
 
         function finalizarTrade(c) {
@@ -158,26 +155,33 @@
                 else v_stake = baseStake;
             }
 
+            // ATUALIZAÇÃO REAL DOS PAINÉIS
             document.getElementById('wins_val').innerText = v_wins;
             document.getElementById('losses_val').innerText = v_losses;
             document.getElementById('profit_val').innerText = v_profit.toFixed(2);
             document.getElementById('profit_val').className = v_profit >= 0 ? "win-text" : "loss-text";
             
-            // Pequeno delay para resetar o estado de trading e evitar travas
-            setTimeout(() => { is_trading = false; }, 500);
+            // RESET DO MOTOR: Libera para a próxima entrada após o processamento
+            setTimeout(() => { is_trading = false; }, 800);
         }
 
         function toggleRobot() {
             if(!is_auth) return alert("Conecte a conta primeiro!");
             is_running = !is_running;
-            const btn = document.getElementById('btnPlay');
-            btn.innerText = is_running ? "PARAR ROBÔ" : "LIGAR ROBÔ";
-            btn.classList.toggle('active', is_running);
+            atualizarBotao();
             if(is_running) {
                 v_stake = parseFloat(document.getElementById('stake_field').value);
                 is_trading = false;
-                logMsg("ROBÔ LIGADO - Buscando Dígito 7...");
+                logMsg("BUSCANDO DÍGITO 7...");
+            } else {
+                logMsg("ROBÔ PAUSADO.");
             }
+        }
+
+        function atualizarBotao() {
+            const btn = document.getElementById('btnPlay');
+            btn.innerText = is_running ? "PARAR ROBÔ" : "LIGAR ROBÔ";
+            btn.classList.toggle('active', is_running);
         }
 
         function resetStats() {
@@ -185,6 +189,7 @@
             document.getElementById('wins_val').innerText = "0";
             document.getElementById('losses_val').innerText = "0";
             document.getElementById('profit_val').innerText = "0.00";
+            document.getElementById('profit_val').className = "";
             logMsg("Estatísticas resetadas.");
         }
     </script>
