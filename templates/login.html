@@ -5,26 +5,20 @@
     <title>Login - Dragon Bot</title>
     <style>
         body { background: #0b0e14; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #161a23; padding: 40px; border-radius: 20px; border: 1px solid #2d333f; width: 100%; max-width: 380px; text-align: center; }
-        h2 { margin-bottom: 30px; color: #00d9ff; }
-        input { width: 100%; padding: 14px; margin: 12px 0; border-radius: 10px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; outline: none; }
-        button { width: 100%; padding: 16px; background: #00d9ff; color: black; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; }
-        .error { color: #ff4444; font-size: 14px; margin-bottom: 10px; }
+        .card { background: #161a23; padding: 40px; border-radius: 20px; border: 1px solid #2d333f; width: 350px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #00d9ff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Entrar no Painel</h2>
-        
+        <p style="font-size: 12px; color: #888;">Use o e-mail da compra. Senha padrão: dragon123</p>
         <form action="/login" method="POST">
-            <input type="email" name="email" placeholder="E-mail de compra" required>
-            <input type="password" name="password" placeholder="Sua senha" required>
+            <input type="email" name="email" placeholder="E-mail" required>
+            <input type="password" name="password" placeholder="Senha" required>
             <button type="submit">ACESSAR SISTEMA</button>
         </form>
-        
-        <div style="margin-top: 15px; font-size: 12px;">
-            Novo por aqui? <a href="/cadastro" style="color:#00ff88; text-decoration:none;">Crie sua conta</a>
-        </div>
     </div>
 </body>
 </html>
