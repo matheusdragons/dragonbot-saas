@@ -2,22 +2,20 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Login - Dragon Bot SaaS</title>
+    <title>Login - Dragon Bot</title>
     <style>
         body { background: #0b0e14; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #161a23; padding: 40px; border-radius: 20px; border: 1px solid #2d333f; width: 350px; text-align: center; }
+        .card { background: #161a23; padding: 40px; border-radius: 15px; border: 1px solid #2d333f; width: 100%; max-width: 350px; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #0b0e14; color: white; box-sizing: border-box; }
-        .btn-entrar { width: 100%; padding: 15px; background: #00d9ff; color: black; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .links { margin-top: 15px; font-size: 12px; color: #888; }
+        button { width: 100%; padding: 15px; background: #00d9ff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <h2>Acesse o Painel</h2>
+    <div class="card">
+        <h2>Acessar Conta</h2>
         <input type="email" placeholder="Seu E-mail">
         <input type="password" placeholder="Sua Senha">
-        <button class="btn-entrar">ENTRAR NO SISTEMA</button>
-        <div class="links">Esqueceu a senha? | Criar conta</div>
+        <button onclick="window.location.href='/dashboard'">ENTRAR</button>
     </div>
 </body>
 </html>
