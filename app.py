@@ -3,12 +3,18 @@ import json
 import os
 import websockets
 from flask import Flask, render_template
+from flask_sock import Sock
 
-app = Flask(__name__)
+# Garante que o Flask procure a pasta templates corretamente
+app = Flask(__name__, template_folder='templates')
+sock = Sock(app)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"Erro: O arquivo index.html não foi encontrado dentro da pasta templates. Detalhe: {e}", 404
 
 async def deriv_proxy(client_ws):
     uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
@@ -16,34 +22,17 @@ async def deriv_proxy(client_ws):
         async def forward_to_deriv():
             try:
                 async for message in client_ws:
-                    data = json.loads(message)
-                    if data.get("action") == "auth":
-                        await deriv_ws.send(json.dumps({"authorize": data["token"]}))
-                    elif data.get("action") == "watch":
-                        await deriv_ws.send(json.dumps({"ticks": "R_100"}))
-                        await deriv_ws.send(json.dumps({"balance": 1, "subscribe": 1}))
-                    elif data.get("action") == "buy":
-                        await deriv_ws.send(json.dumps({
-                            "buy": 1, "price": float(data["stake"]),
-                            "parameters": {"amount": float(data["stake"]), "basis": "stake",
-                            "contract_type": "DIGITDIFF", "currency": "USD",
-                            "duration": 1, "duration_unit": "t", "symbol": "R_100", "barrier": "7"},
-                            "subscribe": 1
-                        }))
-                    elif data.get("action") == "balance":
-                        await deriv_ws.send(json.dumps({"balance": 1}))
+                    await deriv_ws.send(message)
             except: pass
 
         async def forward_to_client():
             try:
                 async for message in deriv_ws:
+                    # REPASSA OS RESULTADOS PARA ATUALIZAR SALDO E PAINÉIS
                     await client_ws.send(message)
             except: pass
 
         await asyncio.gather(forward_to_deriv(), forward_to_client())
-
-from flask_sock import Sock
-sock = Sock(app)
 
 @sock.route('/ws')
 def handle_ws(ws):
