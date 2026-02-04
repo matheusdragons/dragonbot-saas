@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import uuid
 
 app = Flask(__name__)
-app.secret_key = "dragon_secret_key_pro_99"
+app.secret_key = os.environ.get('SECRET_KEY', 'dragon_secret_key_pro_99')
 
 # CONFIGURAÇÃO DO BANCO
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
@@ -21,31 +21,17 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     status_assinatura = db.Column(db.String(20), default='inativo')
     validade = db.Column(db.DateTime, default=datetime.utcnow)
-    session_token = db.Column(db.String(100), unique=True) # Token para multiacesso
+    session_token = db.Column(db.String(100), unique=True) # Bloqueio de Multiacesso
 
 with app.app_context():
     db.create_all()
 
-# --- ROTA DE TESTE (SIMULAÇÃO DE COMPRA) ---
-@app.route('/testar-pagamento')
-def testar_pagamento():
-    email_teste = "cliente@teste.com"
-    user = User.query.filter_by(email=email_teste).first()
-    
-    if not user:
-        senha_inicial = generate_password_hash('dragon123')
-        user = User(
-            email=email_teste, 
-            password=senha_inicial, 
-            status_assinatura='ativo', 
-            validade=datetime.utcnow() + timedelta(days=30)
-        )
-        db.session.add(user)
-        db.session.commit()
-        return f"<h1>Sucesso!</h1><p>Usuário <b>{email_teste}</b> criado. Senha: <b>dragon123</b>.</p><a href='/login'>Fazer Login</a>"
-    return f"<h1>Atenção</h1><p>O usuário <b>{email_teste}</b> já existe.</p><a href='/login'>Ir para Login</a>"
+# --- ROTAS DE NAVEGAÇÃO ---
 
-# --- LOGIN COM BLOQUEIO DE MULTIACESSO ---
+@app.route('/')
+def landing():
+    return render_template('landing.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -54,16 +40,16 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password, senha):
-            # Gerar novo token de sessão (derruba logins anteriores)
+            # Gera novo token de sessão para derrubar outros acessos
             novo_token = str(uuid.uuid4())
             user.session_token = novo_token
             db.session.commit()
             
             session['user_id'] = user.id
-            session['session_token'] = novo_token # Salva na sessão do navegador
+            session['session_token'] = novo_token
             return redirect(url_for('dashboard'))
         
-        return "E-mail ou senha incorretos."
+        return "E-mail ou senha incorretos. <a href='/login'>Tentar novamente</a>"
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -73,19 +59,21 @@ def dashboard():
     
     user = User.query.get(session['user_id'])
     
-    # Verifica se o token do navegador é o mesmo do banco (Bloqueio Multiacesso)
+    # Validação de Multiacesso
     if session.get('session_token') != user.session_token:
         session.clear()
-        return "Sua conta foi logada em outro dispositivo. <a href='/login'>Logar aqui novamente</a>"
+        return "Sua conta foi conectada em outro local. <a href='/login'>Entrar novamente</a>"
 
+    # Validação de Assinatura
     if user.status_assinatura != 'ativo' or user.validade < datetime.utcnow():
-        return "Assinatura expirada. <a href='/'>Voltar</a>"
+        return "Assinatura expirada ou inativa. Entre em contato com o suporte. <a href='/'>Voltar</a>"
         
     return render_template('dashboard.html')
 
 @app.route('/alterar-senha', methods=['POST'])
 def alterar_senha():
-    if 'user_id' not in session: return redirect(url_for('login'))
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     
     nova_senha = request.form.get('nova_senha')
     user = User.query.get(session['user_id'])
@@ -93,31 +81,48 @@ def alterar_senha():
     if user and nova_senha:
         user.password = generate_password_hash(nova_senha)
         db.session.commit()
-        return "Senha atualizada! <a href='/dashboard'>Voltar</a>"
-    return "Erro.", 400
+        return "Senha atualizada com sucesso! <a href='/dashboard'>Voltar ao Painel</a>"
+    return "Erro ao processar alteração.", 400
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('landing'))
 
-# --- WEBHOOK KIRVANO (OFICIAL) ---
+# --- WEBHOOK OFICIAL (INTEGRAÇÃO KIRVANO) ---
+
 @app.route('/webhook-kirvano', methods=['POST'])
 def webhook_kirvano():
     data = request.get_json()
-    email_cliente = data.get('payload', {}).get('customer', {}).get('email')
+    if not data:
+        return jsonify({"status": "error", "message": "No data"}), 400
 
-    if data.get('event') in ['order_approved', 'subscription_created']:
+    evento = data.get('event')
+    payload = data.get('payload', {})
+    email_cliente = payload.get('customer', {}).get('email')
+
+    if email_cliente and evento in ['order_approved', 'subscription_created', 'subscription_renewed']:
         user = User.query.filter_by(email=email_cliente).first()
+        
         if not user:
-            senha_inicial = generate_password_hash('dragon123')
-            user = User(email=email_cliente, password=senha_inicial, status_assinatura='ativo', validade=datetime.utcnow() + timedelta(days=30))
+            # Criação automática do cliente
+            senha_padrao = generate_password_hash('dragon123')
+            user = User(
+                email=email_cliente, 
+                password=senha_padrao, 
+                status_assinatura='ativo', 
+                validade=datetime.utcnow() + timedelta(days=30)
+            )
             db.session.add(user)
         else:
+            # Renovação de acesso
             user.status_assinatura = 'ativo'
             user.validade = datetime.utcnow() + timedelta(days=30)
+            
         db.session.commit()
-    return jsonify({"status": "success"}), 200
+        return jsonify({"status": "success"}), 200
+
+    return jsonify({"status": "ignored"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
