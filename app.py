@@ -49,7 +49,9 @@ def login():
             session['session_token'] = novo_token
             return redirect(url_for('dashboard'))
         
-        return "E-mail ou senha incorretos. <a href='/login'>Tentar novamente</a>"
+        # Se falhar, mostra erro na página de login
+        return render_template('login.html', erro="E-mail ou senha inválidos. Verifique seus dados e tente novamente.")
+    
     return render_template('login.html')
 
 @app.route('/dashboard')
