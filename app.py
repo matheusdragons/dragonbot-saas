@@ -4,13 +4,18 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-# CORREÇÃO AQUI: O nome correto da chave é SQLALCHEMY_DATABASE_URI
-# Usamos .get() para evitar erro caso a variável não exista localmente
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///dragonbot.db')
+# Configuração robusta do Banco de Dados
+# Se não houver DATABASE_URL, ele cria um arquivo local (sqlite) para não dar erro
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///dragonbot.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Rota principal
 @app.route('/')
 def index():
     links_checkout = {
@@ -22,7 +27,7 @@ def index():
 
 @app.route('/login')
 def login():
-    return "Página de Login do Dragon Bot - Em desenvolvimento"
+    return "Área de Login - Dragon Bot"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
