@@ -2,29 +2,474 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dragon Bot - Acesso Vitalício</title>
     <style>
-        :root { --primary: #00d9ff; --success: #00ff88; --bg: #0b0e14; }
-        body { background: var(--bg); color: white; font-family: sans-serif; text-align: center; margin: 0; }
-        .hero { padding: 100px 20px; }
-        .cta-btn { 
-            background: var(--success); color: black; padding: 20px 40px; 
-            text-decoration: none; font-weight: bold; border-radius: 50px; 
-            font-size: 22px; display: inline-block;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        nav { padding: 20px; display: flex; justify-content: space-around; background: #161a23; }
+
+        :root { 
+            --primary: #00d9ff; 
+            --success: #00ff88; 
+            --bg: #0b0e14;
+            --bg-secondary: #161a23;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* NAVEGAÇÃO */
+        nav { 
+            padding: 20px 40px; 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            box-shadow: 0 2px 10px rgba(0, 217, 255, 0.1);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--primary), #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 10px 25px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .login-btn {
+            color: var(--primary);
+            background: transparent;
+            border: 2px solid var(--primary);
+        }
+
+        .login-btn:hover {
+            background: var(--primary);
+            color: black;
+        }
+
+        .start-btn {
+            background: var(--success);
+            color: black;
+            border: 2px solid var(--success);
+        }
+
+        .start-btn:hover {
+            background: #00dd77;
+            transform: translateY(-2px);
+        }
+
+        /* HERO SECTION */
+        .hero { 
+            padding: 100px 40px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.05), rgba(0, 255, 136, 0.05));
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            color: #aaa;
+            font-size: 18px;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-btn { 
+            background: var(--success); 
+            color: black; 
+            padding: 18px 45px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            border-radius: 50px; 
+            font-size: 16px;
+            display: inline-block;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .cta-btn:hover {
+            background: #00dd77;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        /* SOBRE SEÇÃO */
+        .about {
+            padding: 80px 40px;
+            background: var(--bg-secondary);
+            text-align: center;
+        }
+
+        .about h2 {
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: var(--primary);
+        }
+
+        .about-content {
+            max-width: 800px;
+            margin: 0 auto;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #ccc;
+        }
+
+        .about-content p {
+            margin-bottom: 20px;
+        }
+
+        .benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .benefit-card {
+            background: rgba(0, 217, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .benefit-card:hover {
+            background: rgba(0, 217, 255, 0.15);
+            transform: translateY(-5px);
+        }
+
+        .benefit-card h3 {
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+
+        /* PLANOS */
+        .plans-section {
+            padding: 80px 40px;
+            text-align: center;
+        }
+
+        .plans-section h2 {
+            font-size: 36px;
+            margin-bottom: 50px;
+            color: var(--primary);
+        }
+
+        .plans-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .plan-card {
+            background: var(--bg-secondary);
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            border-radius: 10px;
+            padding: 40px 30px;
+            transition: all 0.3s ease;
+        }
+
+        .plan-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.2);
+            transform: translateY(-10px);
+        }
+
+        .plan-card.popular {
+            border-color: var(--success);
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 217, 255, 0.1));
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
+            transform: scale(1.05);
+        }
+
+        .plan-badge {
+            display: inline-block;
+            background: var(--success);
+            color: black;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .plan-price {
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--success);
+            margin: 20px 0;
+        }
+
+        .plan-price span {
+            font-size: 18px;
+            color: #aaa;
+        }
+
+        .plan-description {
+            color: #aaa;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .plan-features {
+            text-align: left;
+            margin: 30px 0;
+            font-size: 14px;
+        }
+
+        .plan-features li {
+            list-style: none;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 217, 255, 0.1);
+            color: #ccc;
+        }
+
+        .plan-features li:before {
+            content: "✓ ";
+            color: var(--success);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .plan-cta {
+            background: var(--primary);
+            color: black;
+            padding: 15px 30px;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 25px;
+            display: inline-block;
+            cursor: pointer;
+            border: none;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .plan-cta:hover {
+            background: var(--success);
+            transform: translateY(-2px);
+        }
+
+        /* FOOTER */
+        footer {
+            background: var(--bg-secondary);
+            padding: 40px;
+            text-align: center;
+            color: #888;
+            border-top: 1px solid rgba(0, 217, 255, 0.1);
+        }
+
+        footer p {
+            margin: 10px 0;
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .nav-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .hero {
+                padding: 60px 20px;
+            }
+
+            .plans-section {
+                padding: 60px 20px;
+            }
+
+            .plan-card.popular {
+                transform: scale(1);
+            }
+
+            .about {
+                padding: 60px 20px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- NAVEGAÇÃO -->
     <nav>
-        <div style="font-weight: bold; font-size: 24px;">DRAGON BOT</div>
-        <a href="/login" style="color: var(--primary); text-decoration: none;">Área do Aluno</a>
+        <div class="nav-brand">
+            🐉 DRAGON BOT
+        </div>
+        <div class="nav-buttons">
+            <a href="#login" class="nav-btn login-btn">Login</a>
+            <a href="#planos" class="nav-btn start-btn">Começar Agora</a>
+        </div>
     </nav>
+
+    <!-- HERO SECTION -->
     <section class="hero">
         <h1>O Robô que Analisa e Opera por Você</h1>
-        <p style="color: #888; font-size: 18px;">Pague uma vez e receba seus dados de acesso automaticamente no e-mail.</p>
-        <br>
-        <a href="https://pay.kirvano.com/dbf3105c-7f6d-4bc4-95bc-4483647cd351" class="cta-btn">QUERO MEU ACESSO AGORA</a>
+        <p>Pague uma vez e receba seus dados de acesso automaticamente no e-mail. Acesso vitalício com atualizações constantes.</p>
+        <a href="#planos" class="cta-btn">COMEÇAR AGORA</a>
+        <a href="#login" class="cta-btn" style="background: transparent; border: 2px solid var(--primary); color: var(--primary);">JÁ TENHO ACESSO</a>
     </section>
+
+    <!-- SOBRE O PRODUTO -->
+    <section class="about">
+        <h2>Por Que Escolher o Dragon Bot?</h2>
+        <div class="about-content">
+            <p>
+                O Dragon Bot é um robô de trading inteligente que funciona 24/7, analisando o mercado com precisão e executando operações sem emoção. Não importa a hora do dia ou da noite, seu capital está sempre trabalhando.
+            </p>
+            <p>
+                Com tecnologia de inteligência artificial e análise técnica avançada, o Dragon Bot identifica as melhores oportunidades de lucro e executa as operações automaticamente. Você só precisa acompanhar os resultados.
+            </p>
+            <p>
+                <strong>Acesso vitalício:</strong> Pague uma única vez e tenha acesso perpétuo ao sistema com todas as atualizações incluídas gratuitamente. Nenhuma taxa mensal, nenhuma surpresa.
+            </p>
+        </div>
+
+        <div class="benefits">
+            <div class="benefit-card">
+                <h3>🤖 100% Automático</h3>
+                <p>Funciona sem sua interferência. O robô cuida de tudo.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>⏰ Disponível 24/7</h3>
+                <p>Opera enquanto você dorme, trabalha ou se diverte.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>💰 Acesso Vitalício</h3>
+                <p>Pague uma vez e tenha acesso para sempre.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>📊 Análise Inteligente</h3>
+                <p>IA avançada identifica as melhores oportunidades.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>🛡️ Sem Emoção</h3>
+                <p>Decisões baseadas em lógica, nunca em medo ou ganância.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>✅ Suporte Completo</h3>
+                <p>Acesso a tutoriais, documentação e comunidade.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- PLANOS -->
+    <section class="plans-section" id="planos">
+        <h2>Escolha Seu Plano</h2>
+        <div class="plans-container">
+            <!-- Plano Iniciante -->
+            <div class="plan-card">
+                <div class="plan-name">Iniciante</div>
+                <div class="plan-price">R$ <strong>297</strong><span>/único</span></div>
+                <div class="plan-description">Para quem está começando no trading automatizado</div>
+                <ul class="plan-features">
+                    <li>Acesso ao robô básico</li>
+                    <li>Análise técnica automática</li>
+                    <li>Acesso 24/7</li>
+                    <li>1 conta de trading</li>
+                    <li>Suporte por email</li>
+                </ul>
+                <a href="https://pay.kirvano.com/seu-link-iniciante" class="plan-cta">IR PARA CHECKOUT</a>
+            </div>
+
+            <!-- Plano Profissional -->
+            <div class="plan-card popular">
+                <div class="plan-badge">MAIS POPULAR</div>
+                <div class="plan-name">Profissional</div>
+                <div class="plan-price">R$ <strong>597</strong><span>/único</span></div>
+                <div class="plan-description">A escolha ideal para traders sérios</div>
+                <ul class="plan-features">
+                    <li>Acesso completo ao robô</li>
+                    <li>IA avançada e análise profunda</li>
+                    <li>Acesso 24/7</li>
+                    <li>Até 5 contas de trading</li>
+                    <li>Suporte prioritário</li>
+                    <li>Tutoriais e webinars</li>
+                </ul>
+                <a href="https://pay.kirvano.com/seu-link-profissional" class="plan-cta">IR PARA CHECKOUT</a>
+            </div>
+
+            <!-- Plano Elite -->
+            <div class="plan-card">
+                <div class="plan-name">Elite</div>
+                <div class="plan-price">R$ <strong>997</strong><span>/único</span></div>
+                <div class="plan-description">O pacote mais completo para máximo lucro</div>
+                <ul class="plan-features">
+                    <li>Acesso premium ao robô</li>
+                    <li>IA ultra-avançada</li>
+                    <li>Acesso 24/7 + prioridade</li>
+                    <li>Contas ilimitadas</li>
+                    <li>Suporte VIP dedicado</li>
+                    <li>Tutoriais, webinars e consultoria</li>
+                    <li>Atualizações vitalícias</li>
+                </ul>
+                <a href="https://pay.kirvano.com/seu-link-elite" class="plan-cta">IR PARA CHECKOUT</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <p><strong>Dragon Bot™</strong> - Robô de Trading Automático</p>
+        <p>© 2024 Todos os direitos reservados</p>
+        <p style="margin-top: 20px; font-size: 12px;">Aviso Legal: O trading envolve riscos. Resultados passados não garantem resultados futuros.</p>
+    </footer>
 </body>
 </html>
