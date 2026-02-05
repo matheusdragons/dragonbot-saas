@@ -29,7 +29,6 @@ def login_required(f):
             session.clear()
             return redirect(url_for('login'))
         
-        # Validação de multiacesso
         if session.get('session_token') != user.session_token:
             session.clear()
             return redirect(url_for('login'))
@@ -76,7 +75,6 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password, senha):
-            # Gera novo token (derruba outros acessos)
             novo_token = str(uuid.uuid4())
             user.session_token = novo_token
             user.ultimo_acesso = datetime.utcnow()
@@ -85,7 +83,6 @@ def login():
             session['user_id'] = user.id
             session['session_token'] = novo_token
             
-            # Redireciona admin para painel admin
             if user.email == Config.ADMIN_EMAIL:
                 return redirect(url_for('admin_dashboard'))
             
@@ -137,7 +134,6 @@ def alterar_senha():
 @login_required
 @subscription_required
 def salvar_config_deriv():
-    """Salva App ID e Token da Deriv - PREPARADO para o robô"""
     user = User.query.get(session['user_id'])
     
     app_id = request.form.get('app_id', '').strip()
@@ -145,7 +141,7 @@ def salvar_config_deriv():
     
     if app_id and token:
         user.deriv_app_id = app_id
-        user.deriv_token = token  # TODO: Criptografar quando implementar o robô
+        user.deriv_token = token
         db.session.commit()
         return jsonify({"status": "success", "message": "Configurações salvas!"})
     
@@ -156,7 +152,6 @@ def salvar_config_deriv():
 @login_required
 @subscription_required
 def salvar_config_robo():
-    """Salva configurações do robô - PREPARADO"""
     user = User.query.get(session['user_id'])
     
     user.valor_entrada = float(request.form.get('valor_entrada', 1.0))
@@ -172,7 +167,6 @@ def salvar_config_robo():
 @login_required
 @subscription_required
 def start_robot():
-    """PLACEHOLDER - Será implementado com o robô"""
     user = User.query.get(session['user_id'])
     
     if not user.deriv_app_id or not user.deriv_token:
@@ -181,7 +175,6 @@ def start_robot():
     user.robot_ativo = True
     db.session.commit()
     
-    # TODO: Iniciar robô real aqui
     return jsonify({"status": "success", "message": "Robô iniciado!", "running": True})
 
 
@@ -189,19 +182,16 @@ def start_robot():
 @login_required
 @subscription_required
 def stop_robot():
-    """PLACEHOLDER - Será implementado com o robô"""
     user = User.query.get(session['user_id'])
     user.robot_ativo = False
     db.session.commit()
     
-    # TODO: Parar robô real aqui
     return jsonify({"status": "success", "message": "Robô parado!", "running": False})
 
 
 @app.route('/api/robot/status')
 @login_required
 def robot_status():
-    """Retorna status do robô"""
     user = User.query.get(session['user_id'])
     return jsonify({
         "running": user.robot_ativo,
@@ -293,8 +283,7 @@ def webhook_kirvano():
     email_cliente = payload.get('customer', {}).get('email', '').lower().strip()
     produto = payload.get('product', {}).get('name', '').lower()
 
-    # Determina o plano baseado no produto
-    plano = 'profissional'  # padrão
+    plano = 'profissional'
     if 'iniciante' in produto:
         plano = 'iniciante'
     elif 'elite' in produto:
@@ -306,25 +295,22 @@ def webhook_kirvano():
         user = User.query.filter_by(email=email_cliente).first()
         
         if not user:
-            # Cria usuário automaticamente
             senha_padrao = generate_password_hash('dragon123')
             user = User(
                 email=email_cliente, 
                 password=senha_padrao, 
                 status_assinatura='ativo',
                 plano=plano,
-                validade=datetime.utcnow() + timedelta(days=365)  # Vitalício = 365 dias (ou mais)
+                validade=datetime.utcnow() + timedelta(days=365)
             )
             db.session.add(user)
         else:
-            # Renova acesso
             user.status_assinatura = 'ativo'
             user.plano = plano
             user.validade = datetime.utcnow() + timedelta(days=365)
             
         db.session.commit()
         
-        # TODO: Enviar email com dados de acesso
         print(f"[WEBHOOK] Usuário {email_cliente} ativado - Plano: {plano}")
         
         return jsonify({"status": "success"}), 200
