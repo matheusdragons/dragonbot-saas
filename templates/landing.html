@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dragon Bot - Acesso Vitalício</title>
+    <title>Dragon Bot - Robô de Trading Automático</title>
     <style>
         * {
             margin: 0;
@@ -267,15 +267,21 @@
         }
 
         .plan-price {
-            font-size: 48px;
+            font-size: 42px;
             font-weight: bold;
             color: var(--success);
-            margin: 20px 0;
+            margin: 20px 0 5px 0;
         }
 
         .plan-price span {
-            font-size: 18px;
+            font-size: 16px;
             color: #aaa;
+        }
+
+        .plan-period {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 20px;
         }
 
         .plan-description {
@@ -385,7 +391,6 @@
             🐉 DRAGON BOT
         </div>
         <div class="nav-buttons">
-            <!-- ✅ CORRIGIDO: Agora vai para a página de login -->
             <a href="/login" class="nav-btn login-btn">Login</a>
             <a href="#planos" class="nav-btn start-btn">Começar Agora</a>
         </div>
@@ -394,11 +399,10 @@
     <!-- HERO SECTION -->
     <section class="hero">
         <h1>O Robô que Analisa e Opera por Você</h1>
-        <p>Pague uma vez e receba seus dados de acesso automaticamente no e-mail. Acesso vitalício com atualizações constantes.</p>
+        <p>Assine agora e deixe a tecnologia trabalhar por você. Receba seus dados de acesso automaticamente no e-mail e comece a operar em minutos.</p>
         
         <div class="hero-buttons">
             <a href="#planos" class="cta-btn">COMEÇAR AGORA</a>
-            <!-- ✅ CORRIGIDO: Agora vai para a página de login -->
             <a href="/login" class="cta-btn secondary">JÁ TENHO ACESSO</a>
         </div>
     </section>
@@ -414,7 +418,7 @@
                 Com tecnologia de inteligência artificial e análise técnica avançada, o Dragon Bot identifica as melhores oportunidades de lucro e executa as operações automaticamente. Você só precisa acompanhar os resultados.
             </p>
             <p>
-                <strong>Acesso vitalício:</strong> Pague uma única vez e tenha acesso perpétuo ao sistema com todas as atualizações incluídas gratuitamente. Nenhuma taxa mensal, nenhuma surpresa.
+                <strong>Escolha o plano ideal para você:</strong> Oferecemos opções flexíveis para todos os perfis de traders, desde iniciantes até profissionais experientes.
             </p>
         </div>
 
@@ -428,8 +432,8 @@
                 <p>Opera enquanto você dorme, trabalha ou se diverte.</p>
             </div>
             <div class="benefit-card">
-                <h3>💰 Acesso Vitalício</h3>
-                <p>Pague uma vez e tenha acesso para sempre.</p>
+                <h3>💰 Planos Flexíveis</h3>
+                <p>Escolha o plano que melhor se adapta às suas necessidades.</p>
             </div>
             <div class="benefit-card">
                 <h3>📊 Análise Inteligente</h3>
@@ -450,10 +454,12 @@
     <section class="plans-section" id="planos">
         <h2>Escolha Seu Plano</h2>
         <div class="plans-container">
-            <!-- Plano Iniciante -->
+            
+            <!-- Plano Mensal -->
             <div class="plan-card">
-                <div class="plan-name">Iniciante</div>
-                <div class="plan-price">R$ <strong>297</strong><span>/único</span></div>
+                <div class="plan-name">Mensal</div>
+                <div class="plan-price">R$ 197<span>/mês</span></div>
+                <div class="plan-period">Cobrança mensal</div>
                 <div class="plan-description">Para quem está começando no trading automatizado</div>
                 <ul class="plan-features">
                     <li>Acesso ao robô básico</li>
@@ -462,32 +468,15 @@
                     <li>1 conta de trading</li>
                     <li>Suporte por email</li>
                 </ul>
-                <!-- ✅ CORRIGIDO: Link real da Kirvano -->
-                <a href="https://pay.kirvano.com/dbf3105c-7f6d-4bc4-95bc-4483647cd351" class="plan-cta" target="_blank">COMPRAR AGORA</a>
+                <a href="https://pay.kirvano.com/2438c136-acd3-4b89-bdb3-df8fb130b6c5" class="plan-cta" target="_blank">ASSINAR AGORA</a>
             </div>
 
-            <!-- Plano Profissional -->
+            <!-- Plano Anual (DESTAQUE - CENTRO) -->
             <div class="plan-card popular">
                 <div class="plan-badge">MAIS POPULAR</div>
-                <div class="plan-name">Profissional</div>
-                <div class="plan-price">R$ <strong>597</strong><span>/único</span></div>
-                <div class="plan-description">A escolha ideal para traders sérios</div>
-                <ul class="plan-features">
-                    <li>Acesso completo ao robô</li>
-                    <li>IA avançada e análise profunda</li>
-                    <li>Acesso 24/7</li>
-                    <li>Até 5 contas de trading</li>
-                    <li>Suporte prioritário</li>
-                    <li>Tutoriais e webinars</li>
-                </ul>
-                <!-- ✅ CORRIGIDO: Link real da Kirvano -->
-                <a href="https://pay.kirvano.com/dbf3105c-7f6d-4bc4-95bc-4483647cd351" class="plan-cta" target="_blank">COMPRAR AGORA</a>
-            </div>
-
-            <!-- Plano Elite -->
-            <div class="plan-card">
-                <div class="plan-name">Elite</div>
-                <div class="plan-price">R$ <strong>997</strong><span>/único</span></div>
+                <div class="plan-name">Anual</div>
+                <div class="plan-price">R$ 127<span>/mês</span></div>
+                <div class="plan-period">Cobrança mensal durante 12 meses</div>
                 <div class="plan-description">O pacote mais completo para máximo lucro</div>
                 <ul class="plan-features">
                     <li>Acesso premium ao robô</li>
@@ -498,9 +487,26 @@
                     <li>Tutoriais, webinars e consultoria</li>
                     <li>Atualizações vitalícias</li>
                 </ul>
-                <!-- ✅ CORRIGIDO: Link real da Kirvano -->
-                <a href="https://pay.kirvano.com/dbf3105c-7f6d-4bc4-95bc-4483647cd351" class="plan-cta" target="_blank">COMPRAR AGORA</a>
+                <a href="https://pay.kirvano.com/b185a1e3-baeb-4b7f-a083-cd251b30afcf" class="plan-cta" target="_blank">ASSINAR AGORA</a>
             </div>
+
+            <!-- Plano Trimestral -->
+            <div class="plan-card">
+                <div class="plan-name">Trimestral</div>
+                <div class="plan-price">R$ 147<span>/mês</span></div>
+                <div class="plan-period">Cobrança mensal durante 3 meses</div>
+                <div class="plan-description">A escolha ideal para traders sérios</div>
+                <ul class="plan-features">
+                    <li>Acesso completo ao robô</li>
+                    <li>IA avançada e análise profunda</li>
+                    <li>Acesso 24/7</li>
+                    <li>Até 5 contas de trading</li>
+                    <li>Suporte prioritário</li>
+                    <li>Tutoriais e webinars</li>
+                </ul>
+                <a href="https://pay.kirvano.com/2438c136-acd3-4b89-bdb3-df8fb130b6c5" class="plan-cta" target="_blank">ASSINAR AGORA</a>
+            </div>
+
         </div>
     </section>
 
