@@ -1,11 +1,19 @@
+import os
 from flask import Flask, render_template
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
+
+# Configuração do Banco de Dados (usando a URL que o Railway fornece automaticamente)
+app.config['SQLALCHEMY_DATABASE_ENV'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
 
 # Rota principal da Landing Page
 @app.route('/')
 def index():
-    # Aqui você pode passar variáveis para o HTML, como links da Kirvano
+    # Links reais da Kirvano (substitua pelos seus links de checkout)
     links_checkout = {
         "plano_basico": "https://pay.kirvano.com/seu-link-basico",
         "plano_pro": "https://pay.kirvano.com/seu-link-pro",
@@ -13,12 +21,12 @@ def index():
     }
     return render_template('index.html', checkouts=links_checkout)
 
-# Rota para a área de login (exemplo)
+# Rota para a área de login
 @app.route('/login')
 def login():
-    # Redireciona para o sistema do robô ou página de login
     return "Página de Login do Dragon Bot - Em desenvolvimento"
 
 if __name__ == '__main__':
-    # Rodar o app em modo debug facilitar o desenvolvimento
-    app.run(debug=True)
+    # O Railway exige que o app rode na porta definida pela variável de ambiente PORT
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
