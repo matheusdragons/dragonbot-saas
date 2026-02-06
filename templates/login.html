@@ -41,13 +41,6 @@
         .nav-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-weight: bold;
-            font-size: 24px;
-            background: linear-gradient(135deg, var(--primary), #0099ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
             text-decoration: none;
         }
 
@@ -96,9 +89,8 @@
             margin-bottom: 40px;
         }
 
-        .login-icon {
-            font-size: 50px;
-            margin-bottom: 15px;
+        .login-logo {
+            margin-bottom: 25px;
         }
 
         .login-header h1 {
@@ -212,7 +204,7 @@
             text-decoration: underline;
         }
 
-        /* FOOTER */
+        /* FOOTER DO CARD */
         .login-footer {
             text-align: center;
             margin-top: 30px;
@@ -241,16 +233,17 @@
                 padding: 15px 20px;
             }
 
-            .nav-brand {
-                font-size: 20px;
-            }
-
             .login-card {
                 padding: 40px 25px;
             }
 
             .login-header h1 {
                 font-size: 24px;
+            }
+
+            .login-logo svg {
+                width: 180px;
+                height: 45px;
             }
         }
     </style>
@@ -259,7 +252,31 @@
     <!-- NAVEGAÇÃO -->
     <nav>
         <a href="/" class="nav-brand">
-            🐉 DRAGON BOT
+            <!-- LOGO NAVBAR -->
+            <svg width="180" height="45" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="gradNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d9ff;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#00ff88;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                
+                <!-- Ícone D + Candlesticks -->
+                <g transform="translate(5, 10)">
+                    <path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" 
+                          stroke="url(#gradNav)" stroke-width="2.5" fill="none"/>
+                    <rect x="8" y="12" width="3" height="10" fill="#00ff88"/>
+                    <line x1="9.5" y1="10" x2="9.5" y2="24" stroke="#00ff88" stroke-width="1"/>
+                    <rect x="14" y="8" width="3" height="12" fill="#00d9ff"/>
+                    <line x1="15.5" y1="6" x2="15.5" y2="22" stroke="#00d9ff" stroke-width="1"/>
+                    <rect x="20" y="5" width="3" height="14" fill="#00ff88"/>
+                    <line x1="21.5" y1="3" x2="21.5" y2="21" stroke="#00ff88" stroke-width="1"/>
+                </g>
+                
+                <!-- Texto -->
+                <text x="45" y="32" font-family="Segoe UI, Arial" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text>
+                <text x="125" y="32" font-family="Segoe UI, Arial" font-size="20" font-weight="bold" fill="url(#gradNav)">BOT</text>
+            </svg>
         </a>
         <a href="/" class="nav-btn">← Voltar</a>
     </nav>
@@ -267,9 +284,42 @@
     <!-- CONTAINER DE LOGIN -->
     <div class="login-container">
         <div class="login-card">
-            <!-- HEADER -->
+            <!-- HEADER COM LOGO -->
             <div class="login-header">
-                <div class="login-icon">🔐</div>
+                <div class="login-logo">
+                    <!-- LOGO NO CARD -->
+                    <svg width="220" height="55" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gradLogin" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00d9ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#00ff88;stop-opacity:1" />
+                            </linearGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        
+                        <!-- Ícone D + Candlesticks com Glow -->
+                        <g transform="translate(5, 10)" filter="url(#glow)">
+                            <path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" 
+                                  stroke="url(#gradLogin)" stroke-width="2.5" fill="none"/>
+                            <rect x="8" y="12" width="3" height="10" fill="#00ff88"/>
+                            <line x1="9.5" y1="10" x2="9.5" y2="24" stroke="#00ff88" stroke-width="1"/>
+                            <rect x="14" y="8" width="3" height="12" fill="#00d9ff"/>
+                            <line x1="15.5" y1="6" x2="15.5" y2="22" stroke="#00d9ff" stroke-width="1"/>
+                            <rect x="20" y="5" width="3" height="14" fill="#00ff88"/>
+                            <line x1="21.5" y1="3" x2="21.5" y2="21" stroke="#00ff88" stroke-width="1"/>
+                        </g>
+                        
+                        <!-- Texto -->
+                        <text x="45" y="32" font-family="Segoe UI, Arial" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text>
+                        <text x="125" y="32" font-family="Segoe UI, Arial" font-size="20" font-weight="bold" fill="url(#gradLogin)">BOT</text>
+                    </svg>
+                </div>
                 <h1>Acessar Painel</h1>
                 <p>Entre com seu e-mail de compra e sua senha padrão para acessar o robô.</p>
             </div>
