@@ -214,11 +214,12 @@
         }
 
         .plans-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            display: flex;
+            justify-content: center;
             gap: 30px;
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
+            align-items: center;
         }
 
         .plan-card {
@@ -227,6 +228,8 @@
             border-radius: 10px;
             padding: 40px 30px;
             transition: all 0.3s ease;
+            flex: 1;
+            max-width: 350px;
         }
 
         .plan-card:hover {
@@ -376,6 +379,10 @@
                 padding: 60px 20px;
             }
 
+            .plans-container {
+                flex-direction: column;
+            }
+
             .plan-card.popular {
                 transform: scale(1);
             }
@@ -418,7 +425,7 @@
         </a>
         <div class="nav-buttons">
             <a href="/login" class="nav-btn login-btn">Login</a>
-            <a href="#planos" class="nav-btn start-btn">Começar Agora</a>
+            <a href="#planos" class="nav-btn start-btn">Conhecer os Planos</a>
         </div>
     </nav>
 
@@ -463,7 +470,7 @@
         <p>Assine agora e deixe a tecnologia trabalhar por você. Receba seus dados de acesso automaticamente no e-mail e comece a operar em minutos.</p>
         
         <div class="hero-buttons">
-            <a href="#planos" class="cta-btn">COMEÇAR AGORA</a>
+            <a href="#planos" class="cta-btn">CONHECER OS PLANOS</a>
             <a href="/login" class="cta-btn secondary">JÁ TENHO ACESSO</a>
         </div>
     </section>
@@ -530,7 +537,7 @@
             <!-- Plano Mensal -->
             <div class="plan-card">
                 <div class="plan-name">Mensal</div>
-                <div class="plan-price">R$ 197<span>/mês</span></div>
+                <div class="plan-price">R$ 99<span>/mês</span></div>
                 <div class="plan-period">Cobrança mensal</div>
                 <div class="plan-description">Para quem está começando no trading automatizado</div>
                 <ul class="plan-features">
@@ -540,33 +547,15 @@
                     <li>1 conta de trading</li>
                     <li>Suporte por email</li>
                 </ul>
-                <a href="https://pay.kirvano.com/f6e43147-a467-4447-a056-07d87856f3a9" class="plan-cta" target="_blank">ASSINAR AGORA</a>
+                <a href="#" class="plan-cta" target="_blank">ASSINAR AGORA</a>
             </div>
 
-            <!-- Plano Anual (DESTAQUE - CENTRO) -->
+            <!-- Plano Trimestral (DESTAQUE) -->
             <div class="plan-card popular">
-                <div class="plan-badge">MAIS POPULAR</div>
-                <div class="plan-name">Anual</div>
-                <div class="plan-price">R$ 127<span>/mês</span></div>
-                <div class="plan-period">Cobrança mensal durante 12 meses</div>
-                <div class="plan-description">O pacote mais completo para máximo lucro</div>
-                <ul class="plan-features">
-                    <li>Acesso premium ao robô</li>
-                    <li>IA ultra-avançada</li>
-                    <li>Acesso 24/7 + prioridade</li>
-                    <li>Contas ilimitadas</li>
-                    <li>Suporte VIP dedicado</li>
-                    <li>Tutoriais, webinars e consultoria</li>
-                    <li>Atualizações vitalícias</li>
-                </ul>
-                <a href="https://pay.kirvano.com/b185a1e3-baeb-4b7f-a083-cd251b30afcf" class="plan-cta" target="_blank">ASSINAR AGORA</a>
-            </div>
-
-            <!-- Plano Trimestral -->
-            <div class="plan-card">
+                <div class="plan-badge">RECOMENDADO</div>
                 <div class="plan-name">Trimestral</div>
-                <div class="plan-price">R$ 147<span>/mês</span></div>
-                <div class="plan-period">Cobrança mensal durante 3 meses</div>
+                <div class="plan-price">R$ 149</div>
+                <div class="plan-period">Pagamento único para 3 meses</div>
                 <div class="plan-description">A escolha ideal para traders sérios</div>
                 <ul class="plan-features">
                     <li>Acesso completo ao robô</li>
@@ -574,9 +563,9 @@
                     <li>Acesso 24/7</li>
                     <li>Até 5 contas de trading</li>
                     <li>Suporte prioritário</li>
-                    <li>Tutoriais e webinars</li>
+                    <li>Economia de R$ 148 vs mensal</li>
                 </ul>
-                <a href="https://pay.kirvano.com/2438c136-acd3-4b89-bdb3-df8fb130b6c5" class="plan-cta" target="_blank">ASSINAR AGORA</a>
+                <a href="#" class="plan-cta" target="_blank">ASSINAR AGORA</a>
             </div>
 
         </div>
