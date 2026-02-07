@@ -5,7 +5,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import uuid
 import asyncio
-import threading
+import json
+import websockets
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dragon_secret_key_pro_99')
@@ -34,6 +35,7 @@ class User(db.Model):
     # Deriv
     deriv_token = db.Column(db.String(200))
     deriv_app_id = db.Column(db.String(20), default='1089')
+    deriv_account_type = db.Column(db.String(20), default='demo')  # demo ou real
     
     # Configurações do Robô
     robot_ativo = db.Column(db.Boolean, default=False)
@@ -80,9 +82,84 @@ with app.app_context():
     db.create_all()
 
 
-# ==================== ARMAZENAMENTO DE ROBÔS ATIVOS ====================
+# ==================== FUNÇÕES DERIV API ====================
 
-robots_ativos = {}  # {user_id: robot_instance}
+async def deriv_authorize(token):
+    """Testa conexão com a Deriv e retorna dados da conta"""
+    try:
+        uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+        
+        async with websockets.connect(uri) as ws:
+            # Autoriza com o token
+            await ws.send(json.dumps({"authorize": token}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'error' in data:
+                return {'success': False, 'error': data['error']['message']}
+            
+            if 'authorize' in data:
+                auth = data['authorize']
+                return {
+                    'success': True,
+                    'email': auth.get('email', ''),
+                    'fullname': auth.get('fullname', ''),
+                    'balance': auth.get('balance', 0),
+                    'currency': auth.get('currency', 'USD'),
+                    'loginid': auth.get('loginid', ''),
+                    'is_virtual': auth.get('is_virtual', 1),
+                    'account_list': auth.get('account_list', [])
+                }
+            
+            return {'success': False, 'error': 'Resposta inválida'}
+            
+    except asyncio.TimeoutError:
+        return {'success': False, 'error': 'Timeout - Conexão demorou muito'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+async def deriv_get_balance(token):
+    """Busca saldo atual da conta"""
+    try:
+        uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+        
+        async with websockets.connect(uri) as ws:
+            # Autoriza
+            await ws.send(json.dumps({"authorize": token}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'error' in data:
+                return {'success': False, 'error': data['error']['message']}
+            
+            # Busca saldo
+            await ws.send(json.dumps({"balance": 1, "subscribe": 0}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'balance' in data:
+                return {
+                    'success': True,
+                    'balance': data['balance']['balance'],
+                    'currency': data['balance']['currency'],
+                    'loginid': data['balance']['loginid']
+                }
+            
+            return {'success': False, 'error': 'Não foi possível obter saldo'}
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def run_async(coro):
+    """Helper para rodar funções async no Flask"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 # ==================== FUNÇÕES AUXILIARES ====================
@@ -151,10 +228,6 @@ def login():
 
 @app.route('/logout')
 def logout():
-    user_id = session.get('user_id')
-    if user_id and user_id in robots_ativos:
-        robots_ativos[user_id].stop()
-        del robots_ativos[user_id]
     session.clear()
     return redirect(url_for('landing'))
 
@@ -191,7 +264,6 @@ def operacoes():
     user = usuario_logado()
     ops = Operacao.query.filter_by(user_id=user.id).order_by(Operacao.data_entrada.desc()).limit(100).all()
     
-    # Cálculos
     total_ops = len(ops)
     wins = len([o for o in ops if o.resultado == 'WIN'])
     losses = len([o for o in ops if o.resultado == 'LOSS'])
@@ -241,6 +313,129 @@ def salvar_config():
     return jsonify({'status': 'success', 'message': 'Configurações salvas!'})
 
 
+@app.route('/api/deriv/testar-conexao', methods=['POST'])
+@requer_login
+def testar_conexao_deriv():
+    """Testa se o token da Deriv é válido"""
+    user = usuario_logado()
+    data = request.get_json()
+    
+    token = data.get('token', user.deriv_token)
+    
+    if not token:
+        return jsonify({'success': False, 'error': 'Token não fornecido'})
+    
+    # Testa conexão
+    result = run_async(deriv_authorize(token))
+    
+    if result['success']:
+        # Salva o token se funcionou
+        user.deriv_token = token
+        db.session.commit()
+        
+        # Adiciona log
+        log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f"Conectado à Deriv - Conta: {result['loginid']}")
+        db.session.add(log)
+        db.session.commit()
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/saldo')
+@requer_login
+def get_saldo_deriv():
+    """Retorna saldo atual da conta Deriv"""
+    user = usuario_logado()
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    result = run_async(deriv_get_balance(user.deriv_token))
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/contas')
+@requer_login
+def get_contas_deriv():
+    """Lista todas as contas disponíveis (demo e real)"""
+    user = usuario_logado()
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    result = run_async(deriv_authorize(user.deriv_token))
+    
+    if result['success']:
+        contas = []
+        for acc in result.get('account_list', []):
+            contas.append({
+                'loginid': acc.get('loginid', ''),
+                'is_virtual': acc.get('is_virtual', 1),
+                'currency': acc.get('currency', 'USD'),
+                'tipo': 'Demo' if acc.get('is_virtual', 1) else 'Real'
+            })
+        
+        return jsonify({
+            'success': True,
+            'conta_atual': result['loginid'],
+            'is_demo': result['is_virtual'],
+            'contas': contas
+        })
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/trocar-conta', methods=['POST'])
+@requer_login
+def trocar_conta_deriv():
+    """Troca para outra conta (demo/real)"""
+    user = usuario_logado()
+    data = request.get_json()
+    
+    tipo_desejado = data.get('tipo', 'demo')  # 'demo' ou 'real'
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    # Busca contas disponíveis
+    result = run_async(deriv_authorize(user.deriv_token))
+    
+    if not result['success']:
+        return jsonify(result)
+    
+    # Encontra a conta do tipo desejado
+    conta_encontrada = None
+    for acc in result.get('account_list', []):
+        is_virtual = acc.get('is_virtual', 1)
+        if tipo_desejado == 'demo' and is_virtual:
+            conta_encontrada = acc
+            break
+        elif tipo_desejado == 'real' and not is_virtual:
+            conta_encontrada = acc
+            break
+    
+    if conta_encontrada:
+        user.deriv_account_type = tipo_desejado
+        db.session.commit()
+        
+        log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f"Trocou para conta {tipo_desejado.upper()}: {conta_encontrada['loginid']}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f"Trocado para conta {tipo_desejado.upper()}",
+            'loginid': conta_encontrada['loginid'],
+            'tipo': tipo_desejado
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': f"Conta {tipo_desejado} não encontrada. Você precisa criar uma conta {tipo_desejado} na Deriv."
+        })
+
+
 @app.route('/api/robot/start', methods=['POST'])
 @requer_login
 @requer_assinatura
@@ -250,10 +445,14 @@ def robot_start():
     if not user.deriv_token:
         return jsonify({'status': 'error', 'message': 'Configure seu Token da Deriv primeiro!'})
     
+    # Testa conexão antes de iniciar
+    result = run_async(deriv_authorize(user.deriv_token))
+    if not result['success']:
+        return jsonify({'status': 'error', 'message': f"Erro na conexão: {result['error']}"})
+    
     user.robot_ativo = True
     db.session.commit()
     
-    # Adiciona log
     log = LogRobo(user_id=user.id, tipo='INFO', mensagem='Robô iniciado pelo usuário')
     db.session.add(log)
     db.session.commit()
@@ -269,7 +468,6 @@ def robot_stop():
     user.robot_ativo = False
     db.session.commit()
     
-    # Adiciona log
     log = LogRobo(user_id=user.id, tipo='INFO', mensagem='Robô parado pelo usuário')
     db.session.add(log)
     db.session.commit()
@@ -305,7 +503,8 @@ def robot_status():
         'deriv_configured': bool(user.deriv_token),
         'logs': logs_list,
         'lucro_dia': lucro_dia,
-        'operacoes_dia': ops_dia
+        'operacoes_dia': ops_dia,
+        'account_type': user.deriv_account_type or 'demo'
     })
 
 
@@ -339,7 +538,6 @@ def webhook_kirvano():
     email_cliente = payload.get('customer', {}).get('email', '').lower().strip()
     produto = payload.get('product', {}).get('name', '').lower()
 
-    # Identifica o plano
     plano = 'mensal'
     dias = 30
     if 'trimestral' in produto:
@@ -376,14 +574,10 @@ def webhook_kirvano():
 
 @app.route('/criar-teste-dragon-2024')
 def criar_usuario_teste():
-    """Cria usuário de teste - DELETAR DEPOIS DO LANÇAMENTO"""
-    
-    # Verifica se já existe
     user_existente = User.query.filter_by(email='teste@dragonbot.com').first()
     if user_existente:
         return """
         <html>
-        <head><title>Usuário Existe</title></head>
         <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
             <h1 style="color: #00d9ff;">✅ Usuário já existe!</h1>
             <p>Email: teste@dragonbot.com</p>
@@ -392,9 +586,6 @@ def criar_usuario_teste():
         </body>
         </html>
         """
-    
-    # Cria novo usuário
-    from datetime import datetime, timedelta
     
     novo_user = User(
         email='teste@dragonbot.com',
@@ -417,17 +608,14 @@ def criar_usuario_teste():
     
     return """
     <html>
-    <head><title>Usuário Criado</title></head>
     <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
         <h1 style="color: #00ff88;">🎉 Usuário criado com sucesso!</h1>
         <div style="background: #161a23; padding: 30px; border-radius: 15px; display: inline-block; margin-top: 30px;">
-            <p style="margin: 10px 0;"><strong>Email:</strong> teste@dragonbot.com</p>
-            <p style="margin: 10px 0;"><strong>Senha:</strong> dragon123</p>
-            <p style="margin: 10px 0;"><strong>Plano:</strong> Mensal (Ativo)</p>
-            <p style="margin: 10px 0;"><strong>Válido até:</strong> 365 dias</p>
+            <p><strong>Email:</strong> teste@dragonbot.com</p>
+            <p><strong>Senha:</strong> dragon123</p>
         </div>
         <br><br>
-        <a href="/login" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN AGORA</a>
+        <a href="/login" style="display: inline-block; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN AGORA</a>
     </body>
     </html>
     """
