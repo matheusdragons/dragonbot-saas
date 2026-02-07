@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Dragon Bot</title>
     <style>
+        /* MANTENDO SEUS ESTILOS ORIGINAIS */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         :root {
             --primary: #00d9ff;
             --success: #00ff88;
@@ -16,15 +16,12 @@
             --bg-secondary: #161a23;
             --bg-tertiary: #1e2530;
         }
-        
         body {
             background: var(--bg);
             color: white;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
-        
-        /* HEADER */
         .header {
             background: var(--bg-secondary);
             padding: 15px 30px;
@@ -36,14 +33,11 @@
             top: 0;
             z-index: 100;
         }
-        
         .logo { display: flex; align-items: center; text-decoration: none; }
         .nav-menu { display: flex; gap: 10px; }
         .nav-link { color: #888; text-decoration: none; padding: 10px 20px; border-radius: 8px; transition: all 0.3s; font-size: 14px; }
         .nav-link:hover, .nav-link.active { color: var(--primary); background: rgba(0, 217, 255, 0.1); }
         .nav-link.logout { color: var(--danger); }
-        
-        /* CONTAINER */
         .container {
             display: grid;
             grid-template-columns: 320px 1fr;
@@ -52,17 +46,13 @@
             max-width: 1400px;
             margin: 0 auto;
         }
-        
         @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
-        
-        /* CARDS */
         .card {
             background: var(--bg-secondary);
             border-radius: 15px;
             padding: 25px;
             border: 1px solid #2d333f;
         }
-        
         .card h3 {
             color: var(--primary);
             margin-bottom: 20px;
@@ -71,8 +61,6 @@
             align-items: center;
             gap: 8px;
         }
-        
-        /* FORM */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
         .form-group input, .form-group select {
@@ -85,8 +73,6 @@
             font-size: 14px;
         }
         .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
-        
-        /* BUTTONS */
         .btn {
             padding: 12px 24px;
             border: none;
@@ -97,18 +83,13 @@
             font-size: 14px;
             width: 100%;
         }
-        
         .btn-primary { background: var(--primary); color: black; }
         .btn-success { background: var(--success); color: black; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-warning { background: var(--warning); color: black; }
-        
         .btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        
         .btn-sm { padding: 8px 16px; font-size: 12px; width: auto; }
-        
-        /* CONEXÃO STATUS */
         .connection-status {
             display: flex;
             align-items: center;
@@ -118,26 +99,9 @@
             margin-bottom: 15px;
             font-size: 14px;
         }
-        
-        .connection-status.disconnected {
-            background: rgba(255, 71, 87, 0.1);
-            border: 1px solid var(--danger);
-            color: var(--danger);
-        }
-        
-        .connection-status.connected {
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid var(--success);
-            color: var(--success);
-        }
-        
-        .connection-status.loading {
-            background: rgba(255, 165, 2, 0.1);
-            border: 1px solid var(--warning);
-            color: var(--warning);
-        }
-        
-        /* SALDO CARD */
+        .connection-status.disconnected { background: rgba(255, 71, 87, 0.1); border: 1px solid var(--danger); color: var(--danger); }
+        .connection-status.connected { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--success); color: var(--success); }
+        .connection-status.loading { background: rgba(255, 165, 2, 0.1); border: 1px solid var(--warning); color: var(--warning); }
         .saldo-card {
             background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
             border: 1px solid #2d333f;
@@ -146,90 +110,31 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        
         .saldo-label { font-size: 12px; color: #888; margin-bottom: 5px; }
         .saldo-valor { font-size: 36px; font-weight: bold; color: var(--success); }
         .saldo-currency { font-size: 14px; color: #888; }
-        
-        .conta-tipo {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        
+        .conta-tipo { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 15px; }
         .conta-tipo.demo { background: rgba(0, 217, 255, 0.2); color: var(--primary); }
         .conta-tipo.real { background: rgba(0, 255, 136, 0.2); color: var(--success); }
-        
-        .trocar-conta-btns {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            justify-content: center;
-        }
-        
-        /* ROBOT SECTION */
+        .trocar-conta-btns { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
         .robot-section { display: flex; flex-direction: column; gap: 20px; }
-        
         .robot-status { text-align: center; padding: 40px; }
         .robot-icon { font-size: 80px; margin-bottom: 20px; }
-        
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-        
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 25px; font-size: 14px; margin-bottom: 20px; }
         .status-badge.running { background: rgba(0, 255, 136, 0.1); color: var(--success); }
         .status-badge.stopped { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
-        
         .status-dot { width: 10px; height: 10px; border-radius: 50%; }
         .status-dot.running { background: var(--success); animation: pulse 1.5s infinite; }
         .status-dot.stopped { background: var(--danger); }
-        
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        
         .robot-controls { display: flex; gap: 15px; justify-content: center; }
         .robot-controls .btn { width: auto; padding: 15px 40px; }
-        
-        /* STATS */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: var(--bg-tertiary);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--bg-tertiary); padding: 15px; border-radius: 10px; text-align: center; }
         .stat-value { font-size: 24px; font-weight: bold; color: var(--success); }
         .stat-value.negative { color: var(--danger); }
         .stat-label { font-size: 11px; color: #888; margin-top: 5px; }
-        
-        /* LOGS */
-        .logs-container {
-            background: var(--bg);
-            border-radius: 10px;
-            padding: 15px;
-            height: 250px;
-            overflow-y: auto;
-            font-family: 'Consolas', monospace;
-            font-size: 12px;
-        }
-        
+        .logs-container { background: var(--bg); border-radius: 10px; padding: 15px; height: 250px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; }
         .log-entry { padding: 8px 0; border-bottom: 1px solid #1a1f2a; display: flex; gap: 10px; }
         .log-time { color: #555; }
         .log-type { font-weight: bold; }
@@ -238,36 +143,13 @@
         .log-type.ENTRADA { color: var(--success); }
         .log-type.ERRO { color: var(--danger); }
         .log-message { color: #aaa; }
-        
-        /* INFO BOX */
-        .info-box {
-            background: rgba(0, 217, 255, 0.05);
-            border: 1px solid rgba(0, 217, 255, 0.2);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 12px;
-            color: #888;
-            margin-top: 15px;
-        }
-        
+        .info-box { background: rgba(0, 217, 255, 0.05); border: 1px solid rgba(0, 217, 255, 0.2); border-radius: 8px; padding: 12px; font-size: 12px; color: #888; margin-top: 15px; }
         .info-box a { color: var(--primary); }
-        
-        /* LOADING */
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary);
-            animation: spin 1s linear infinite;
-        }
-        
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: var(--primary); animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <!-- HEADER -->
     <header class="header">
         <a href="/painel" class="logo">
             <svg width="150" height="38" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
@@ -285,77 +167,69 @@
         </nav>
     </header>
 
-    <!-- CONTAINER -->
     <div class="container">
-        <!-- SIDEBAR -->
         <aside>
-            <!-- Saldo da Conta -->
             <div class="saldo-card">
                 <div class="saldo-label">SALDO DA CONTA</div>
                 <div class="saldo-valor" id="saldo-valor">$0.00</div>
                 <div class="saldo-currency" id="saldo-currency">USD</div>
-                
                 <div class="conta-tipo demo" id="conta-tipo">
                     <span id="conta-tipo-icon">🎮</span>
                     <span id="conta-tipo-texto">DEMO</span>
                 </div>
-                
                 <div class="trocar-conta-btns">
                     <button class="btn btn-sm btn-primary" onclick="trocarConta('demo')" id="btn-demo">Demo</button>
                     <button class="btn btn-sm btn-warning" onclick="trocarConta('real')" id="btn-real">Real</button>
                 </div>
             </div>
-            
-            <!-- Conexão Deriv -->
+
             <div class="card">
                 <h3>🔑 Conexão Deriv</h3>
-                
                 <div class="connection-status disconnected" id="connection-status">
                     <span id="connection-icon">❌</span>
                     <span id="connection-text">Não conectado</span>
                 </div>
-                
                 <div class="form-group">
                     <label>Token de API</label>
                     <input type="password" id="deriv_token" placeholder="Cole seu token aqui" value="{{ user.deriv_token or '' }}">
                 </div>
-                
                 <button class="btn btn-primary" onclick="testarConexao()" id="btn-testar">
                     <span id="btn-testar-text">TESTAR CONEXÃO</span>
                 </button>
-                
                 <div class="info-box">
                     <strong>Como obter o token:</strong><br>
                     1. Acesse <a href="https://app.deriv.com/account/api-token" target="_blank">app.deriv.com/account/api-token</a><br>
-                    2. Crie um token com permissões: Read, Trade, Payments<br>
-                    3. Copie e cole acima
+                    2. Crie um token com permissões: Read, Trade, Payments
                 </div>
             </div>
-            
-            <!-- Configurações -->
+
             <div class="card" style="margin-top: 20px;">
                 <h3>⚙️ Configurações</h3>
                 
                 <div class="form-group">
+                    <label>Estratégia</label>
+                    <select id="estrategia_tipo">
+                        <option value="technical" {% if user.estrategia_tipo == 'technical' %}selected{% endif %}>Técnica (BB + RSI + Value Chart)</option>
+                        <option value="probability" {% if user.estrategia_tipo == 'probability' %}selected{% endif %}>Probabilidade (Over/Under)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label>Valor por Entrada ($)</label>
                     <input type="number" id="valor_entrada" step="0.01" min="0.35" value="{{ user.valor_entrada or 1.0 }}">
                 </div>
-                
                 <div class="form-group">
                     <label>Stop Loss ($)</label>
                     <input type="number" id="stop_loss" step="1" min="1" value="{{ user.stop_loss or 50 }}">
                 </div>
-                
                 <div class="form-group">
                     <label>Take Profit ($)</label>
                     <input type="number" id="take_profit" step="1" min="1" value="{{ user.take_profit or 100 }}">
                 </div>
-                
                 <div class="form-group">
                     <label>Máx. Operações/Dia</label>
                     <input type="number" id="max_operacoes" min="1" max="200" value="{{ user.max_operacoes_dia or 50 }}">
                 </div>
-                
                 <div class="form-group">
                     <label>Gestão de Banca</label>
                     <select id="tipo_gestao">
@@ -364,30 +238,23 @@
                         <option value="soros" {% if user.tipo_gestao == 'soros' %}selected{% endif %}>Soros</option>
                     </select>
                 </div>
-                
                 <button class="btn btn-primary" onclick="salvarConfig()">SALVAR CONFIGURAÇÕES</button>
             </div>
         </aside>
-        
-        <!-- MAIN -->
+
         <main class="robot-section">
-            <!-- Status do Robô -->
             <div class="card">
                 <div class="robot-status">
                     <div class="robot-icon">🤖</div>
-                    
                     <div class="status-badge stopped" id="status-badge">
                         <span class="status-dot stopped" id="status-dot"></span>
                         <span id="status-text">Parado</span>
                     </div>
-                    
                     <div class="robot-controls">
                         <button class="btn btn-success" id="btn-start" onclick="startRobot()">▶ INICIAR</button>
                         <button class="btn btn-danger" id="btn-stop" onclick="stopRobot()" disabled>⏸ PARAR</button>
                     </div>
                 </div>
-                
-                <!-- Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value" id="lucro-dia">$0.00</div>
@@ -399,8 +266,6 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Logs -->
             <div class="card">
                 <h3>📋 Logs de Operação</h3>
                 <div class="logs-container" id="logs-container">
@@ -415,11 +280,10 @@
     </div>
 
     <script>
-        // ===== VARIÁVEIS GLOBAIS =====
         let isConnected = false;
         let currentAccountType = 'demo';
-        
-        // ===== TESTAR CONEXÃO =====
+
+        // TESTAR CONEXÃO
         function testarConexao() {
             const token = document.getElementById('deriv_token').value;
             const btn = document.getElementById('btn-testar');
@@ -427,242 +291,125 @@
             const status = document.getElementById('connection-status');
             const icon = document.getElementById('connection-icon');
             const text = document.getElementById('connection-text');
-            
-            if (!token) {
-                alert('Por favor, insira o token da Deriv');
-                return;
-            }
-            
-            // Loading
+            if (!token) { alert('Por favor, insira o token'); return; }
             btn.disabled = true;
             btnText.innerHTML = '<span class="loading-spinner"></span> Testando...';
             status.className = 'connection-status loading';
-            icon.textContent = '⏳';
-            text.textContent = 'Conectando...';
-            
             fetch('/api/deriv/testar-conexao', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({token: token})
-            })
-            .then(res => res.json())
-            .then(data => {
-                btn.disabled = false;
-                btnText.textContent = 'TESTAR CONEXÃO';
-                
+            }).then(res => res.json()).then(data => {
+                btn.disabled = false; btnText.textContent = 'TESTAR CONEXÃO';
                 if (data.success) {
-                    status.className = 'connection-status connected';
-                    icon.textContent = '✅';
-                    text.textContent = `Conectado: ${data.loginid}`;
-                    isConnected = true;
-                    
-                    addLog('INFO', `Conectado à Deriv - ${data.email}`);
-                    
-                    // Atualiza saldo
-                    atualizarSaldo();
+                    status.className = 'connection-status connected'; icon.textContent = '✅'; text.textContent = `Conectado: ${data.loginid}`;
+                    isConnected = true; atualizarSaldo();
                 } else {
-                    status.className = 'connection-status disconnected';
-                    icon.textContent = '❌';
-                    text.textContent = `Erro: ${data.error}`;
+                    status.className = 'connection-status disconnected'; icon.textContent = '❌'; text.textContent = `Erro: ${data.error}`;
                     isConnected = false;
-                    
-                    addLog('ERRO', data.error);
                 }
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btnText.textContent = 'TESTAR CONEXÃO';
-                status.className = 'connection-status disconnected';
-                icon.textContent = '❌';
-                text.textContent = 'Erro de conexão';
-                addLog('ERRO', err.message);
             });
         }
-        
-        // ===== ATUALIZAR SALDO =====
+
         function atualizarSaldo() {
-            fetch('/api/deriv/saldo')
-            .then(res => res.json())
-            .then(data => {
+            fetch('/api/deriv/saldo').then(res => res.json()).then(data => {
                 if (data.success) {
                     document.getElementById('saldo-valor').textContent = `$${data.balance.toFixed(2)}`;
                     document.getElementById('saldo-currency').textContent = data.currency;
                 }
             });
         }
-        
-        // ===== TROCAR CONTA =====
-        function trocarConta(tipo) {
-            const btnDemo = document.getElementById('btn-demo');
-            const btnReal = document.getElementById('btn-real');
-            
-            btnDemo.disabled = true;
-            btnReal.disabled = true;
-            
-            fetch('/api/deriv/trocar-conta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({tipo: tipo})
-            })
-            .then(res => res.json())
-            .then(data => {
-                btnDemo.disabled = false;
-                btnReal.disabled = false;
-                
-                if (data.success) {
-                    currentAccountType = tipo;
-                    atualizarTipoConta(tipo);
-                    addLog('INFO', data.message);
-                    atualizarSaldo();
-                } else {
-                    alert(data.error);
-                    addLog('ERRO', data.error);
-                }
-            });
-        }
-        
-        function atualizarTipoConta(tipo) {
-            const badge = document.getElementById('conta-tipo');
-            const icon = document.getElementById('conta-tipo-icon');
-            const texto = document.getElementById('conta-tipo-texto');
-            
-            if (tipo === 'demo') {
-                badge.className = 'conta-tipo demo';
-                icon.textContent = '🎮';
-                texto.textContent = 'DEMO';
-            } else {
-                badge.className = 'conta-tipo real';
-                icon.textContent = '💰';
-                texto.textContent = 'REAL';
-            }
-        }
-        
-        // ===== SALVAR CONFIG =====
+
+        // SALVAR CONFIG (ATUALIZADO COM ESTRATEGIA)
         function salvarConfig() {
             const data = {
                 deriv_token: document.getElementById('deriv_token').value,
+                estrategia_tipo: document.getElementById('estrategia_tipo').value, // Novo campo
                 valor_entrada: document.getElementById('valor_entrada').value,
                 stop_loss: document.getElementById('stop_loss').value,
                 take_profit: document.getElementById('take_profit').value,
                 max_operacoes_dia: document.getElementById('max_operacoes').value,
                 tipo_gestao: document.getElementById('tipo_gestao').value
             };
-            
             fetch('/api/salvar-config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
-            })
-            .then(res => res.json())
-            .then(data => {
+            }).then(res => res.json()).then(data => {
                 addLog('INFO', 'Configurações salvas!');
                 alert(data.message);
             });
         }
-        
-        // ===== START/STOP ROBOT =====
+
         function startRobot() {
-            if (!isConnected) {
-                alert('Por favor, conecte primeiro à Deriv');
-                return;
-            }
-            
-            fetch('/api/robot/start', {method: 'POST'})
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    updateStatus(true);
-                    addLog('INFO', '🚀 Robô iniciado!');
-                } else {
-                    alert(data.message);
-                    addLog('ERRO', data.message);
-                }
+            if (!isConnected) { alert('Conecte primeiro à Deriv'); return; }
+            fetch('/api/robot/start', {method: 'POST'}).then(res => res.json()).then(data => {
+                if (data.status === 'success') { updateStatus(true); addLog('INFO', '🚀 Robô iniciado!'); }
+                else { alert(data.message); }
             });
         }
-        
+
         function stopRobot() {
-            fetch('/api/robot/stop', {method: 'POST'})
-            .then(res => res.json())
-            .then(data => {
-                updateStatus(false);
-                addLog('INFO', '⏸ Robô parado.');
-            });
+            fetch('/api/robot/stop', {method: 'POST'}).then(res => { updateStatus(false); addLog('INFO', '⏸ Robô parado.'); });
         }
-        
+
         function updateStatus(running) {
             const badge = document.getElementById('status-badge');
             const dot = document.getElementById('status-dot');
             const text = document.getElementById('status-text');
             const btnStart = document.getElementById('btn-start');
             const btnStop = document.getElementById('btn-stop');
-            
             if (running) {
-                badge.className = 'status-badge running';
-                dot.className = 'status-dot running';
-                text.textContent = 'Operando';
-                btnStart.disabled = true;
-                btnStop.disabled = false;
+                badge.className = 'status-badge running'; dot.className = 'status-dot running'; text.textContent = 'Operando';
+                btnStart.disabled = true; btnStop.disabled = false;
             } else {
-                badge.className = 'status-badge stopped';
-                dot.className = 'status-dot stopped';
-                text.textContent = 'Parado';
-                btnStart.disabled = false;
-                btnStop.disabled = true;
+                badge.className = 'status-badge stopped'; dot.className = 'status-dot stopped'; text.textContent = 'Parado';
+                btnStart.disabled = false; btnStop.disabled = true;
             }
         }
-        
-        // ===== LOGS =====
+
         function addLog(tipo, mensagem) {
             const container = document.getElementById('logs-container');
             const now = new Date().toLocaleTimeString('pt-BR');
-            
             const entry = document.createElement('div');
             entry.className = 'log-entry';
-            entry.innerHTML = `
-                <span class="log-time">[${now}]</span>
-                <span class="log-type ${tipo}">${tipo}</span>
-                <span class="log-message">${mensagem}</span>
-            `;
-            
+            entry.innerHTML = `<span class="log-time">[${now}]</span> <span class="log-type ${tipo}">${tipo}</span> <span class="log-message">${mensagem}</span>`;
             container.insertBefore(entry, container.firstChild);
-            
-            while (container.children.length > 50) {
-                container.removeChild(container.lastChild);
-            }
         }
-        
-        // ===== LOAD STATUS =====
+
+        // CARREGAR STATUS (ATUALIZADO COM ESTRATEGIA)
         function loadStatus() {
-            fetch('/api/robot/status')
-            .then(res => res.json())
-            .then(data => {
+            fetch('/api/robot/status').then(res => res.json()).then(data => {
                 updateStatus(data.running);
-                
                 document.getElementById('lucro-dia').textContent = '$' + (data.lucro_dia || 0).toFixed(2);
                 document.getElementById('ops-dia').textContent = data.operacoes_dia || 0;
                 
-                if (data.account_type) {
-                    atualizarTipoConta(data.account_type);
+                // Atualiza o seletor de estratégia se vier no status
+                if (data.estrategia_tipo) {
+                    document.getElementById('estrategia_tipo').value = data.estrategia_tipo;
                 }
-                
+
                 if (data.deriv_configured) {
                     isConnected = true;
                     document.getElementById('connection-status').className = 'connection-status connected';
-                    document.getElementById('connection-icon').textContent = '✅';
                     document.getElementById('connection-text').textContent = 'Conectado';
                     atualizarSaldo();
                 }
             });
         }
-        
-        // ===== INIT =====
+
         loadStatus();
-        
-        // Atualiza a cada 10 segundos
-        setInterval(() => {
-            loadStatus();
-            if (isConnected) atualizarSaldo();
-        }, 10000);
+        setInterval(() => { loadStatus(); if (isConnected) atualizarSaldo(); }, 10000);
+
+        function trocarConta(tipo) {
+            fetch('/api/deriv/trocar-conta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tipo: tipo})
+            }).then(res => res.json()).then(data => {
+                if (data.success) { location.reload(); } else { alert(data.error); }
+            });
+        }
     </script>
 </body>
 </html>
