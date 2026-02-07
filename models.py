@@ -21,8 +21,8 @@ class User(db.Model):
     password = db.Column(db.String(255), nullable=False)
     
     # Assinatura
-    status_assinatura = db.Column(db.String(20), default='inativo')  # ativo, inativo
-    plano = db.Column(db.String(20), default='mensal')  # mensal, trimestral
+    status_assinatura = db.Column(db.String(20), default='inativo')
+    plano = db.Column(db.String(20), default='mensal')
     validade = db.Column(db.DateTime, nullable=True)
     
     # Segurança
@@ -31,7 +31,7 @@ class User(db.Model):
     # Deriv
     deriv_token = db.Column(db.String(255), nullable=True)
     deriv_app_id = db.Column(db.String(20), default='1089')
-    deriv_account_type = db.Column(db.String(10), default='demo')  # demo, real
+    deriv_account_type = db.Column(db.String(10), default='demo')
     
     # Configurações do Robô
     robot_ativo = db.Column(db.Boolean, default=False)
@@ -39,7 +39,7 @@ class User(db.Model):
     stop_loss = db.Column(db.Float, default=50.0)
     take_profit = db.Column(db.Float, default=100.0)
     max_operacoes_dia = db.Column(db.Integer, default=50)
-    tipo_gestao = db.Column(db.String(20), default='fixo')  # fixo, martingale, soros
+    tipo_gestao = db.Column(db.String(20), default='fixo')
     nivel_martingale = db.Column(db.Float, default=2.0)
     ativo_preferido = db.Column(db.String(20), default='R_75')
     
@@ -100,19 +100,19 @@ class Operacao(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # Dados da operação
-    tipo = db.Column(db.String(20), nullable=False)  # CALL, PUT, DIGITOVER, DIGITUNDER
+    tipo = db.Column(db.String(20), nullable=False)
     ativo = db.Column(db.String(20), default='R_75')
     valor = db.Column(db.Float, nullable=False)
     
     # Resultado
-    resultado = db.Column(db.String(10), default='PENDING')  # WIN, LOSS, PENDING
+    resultado = db.Column(db.String(10), default='PENDING')
     lucro = db.Column(db.Float, default=0.0)
     
     # Para contratos DIGIT
-    barrier = db.Column(db.String(5), nullable=True)  # 0-9
-    confianca = db.Column(db.Float, nullable=True)  # % de confiança do sinal
+    barrier = db.Column(db.String(5), nullable=True)
+    confianca = db.Column(db.Float, nullable=True)
     
-    # Indicadores técnicos (opcionais - só para estratégia de candles)
+    # Indicadores técnicos (opcionais)
     rsi = db.Column(db.Float, nullable=True)
     bollinger = db.Column(db.String(20), nullable=True)
     value_chart = db.Column(db.Float, nullable=True)
@@ -133,7 +133,7 @@ class LogRobo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
-    tipo = db.Column(db.String(20), nullable=False)  # INFO, SINAL, ENTRADA, RESULTADO, ERRO
+    tipo = db.Column(db.String(20), nullable=False)
     mensagem = db.Column(db.Text, nullable=False)
     data = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -141,7 +141,6 @@ class LogRobo(db.Model):
         return f'<LogRobo {self.id} {self.tipo}>'
 
 
-# Função para criar tabelas
 def init_db(app):
     """Inicializa o banco de dados."""
     db.init_app(app)
