@@ -35,7 +35,7 @@ class User(db.Model):
     # Deriv
     deriv_token = db.Column(db.String(200))
     deriv_app_id = db.Column(db.String(20), default='1089')
-    deriv_account_type = db.Column(db.String(20), default='demo')  # demo ou real
+    deriv_account_type = db.Column(db.String(20), default='demo')
     
     # Configurações do Robô
     robot_ativo = db.Column(db.Boolean, default=False)
@@ -46,6 +46,9 @@ class User(db.Model):
     tipo_gestao = db.Column(db.String(20), default='fixo')
     nivel_martingale = db.Column(db.Float, default=2.0)
     
+    # NOVO: Tipo de Estratégia
+    estrategia_tipo = db.Column(db.String(20), default='technical')
+    
     # Controle
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     ultimo_acesso = db.Column(db.DateTime, default=datetime.utcnow)
@@ -55,15 +58,18 @@ class Operacao(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    tipo = db.Column(db.String(10))
+    tipo = db.Column(db.String(20))
     ativo = db.Column(db.String(50), default='R_75')
     valor = db.Column(db.Float)
     resultado = db.Column(db.String(10))
     lucro = db.Column(db.Float, default=0)
     
-    rsi = db.Column(db.Float)
-    bollinger = db.Column(db.String(20))
-    value_chart = db.Column(db.Float)
+    # NOVO: Para estratégia Over/Under
+    barrier = db.Column(db.String(5))
+    
+    rsi = db.Column(db.Float, nullable=True)
+    bollinger = db.Column(db.String(20), nullable=True)
+    value_chart = db.Column(db.Float, nullable=True)
     
     data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
     data_resultado = db.Column(db.DateTime)
@@ -90,7 +96,6 @@ async def deriv_authorize(token):
         uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
         
         async with websockets.connect(uri) as ws:
-            # Autoriza com o token
             await ws.send(json.dumps({"authorize": token}))
             response = await asyncio.wait_for(ws.recv(), timeout=10)
             data = json.loads(response)
@@ -125,7 +130,6 @@ async def deriv_get_balance(token):
         uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
         
         async with websockets.connect(uri) as ws:
-            # Autoriza
             await ws.send(json.dumps({"authorize": token}))
             response = await asyncio.wait_for(ws.recv(), timeout=10)
             data = json.loads(response)
@@ -133,7 +137,6 @@ async def deriv_get_balance(token):
             if 'error' in data:
                 return {'success': False, 'error': data['error']['message']}
             
-            # Busca saldo
             await ws.send(json.dumps({"balance": 1, "subscribe": 0}))
             response = await asyncio.wait_for(ws.recv(), timeout=10)
             data = json.loads(response)
@@ -308,6 +311,10 @@ def salvar_config():
     if 'nivel_martingale' in data:
         user.nivel_martingale = float(data['nivel_martingale'])
     
+    # NOVO: Salva tipo de estratégia
+    if 'estrategia_tipo' in data:
+        user.estrategia_tipo = data['estrategia_tipo']
+    
     db.session.commit()
     
     return jsonify({'status': 'success', 'message': 'Configurações salvas!'})
@@ -325,15 +332,12 @@ def testar_conexao_deriv():
     if not token:
         return jsonify({'success': False, 'error': 'Token não fornecido'})
     
-    # Testa conexão
     result = run_async(deriv_authorize(token))
     
     if result['success']:
-        # Salva o token se funcionou
         user.deriv_token = token
         db.session.commit()
         
-        # Adiciona log
         log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f"Conectado à Deriv - Conta: {result['loginid']}")
         db.session.add(log)
         db.session.commit()
@@ -393,18 +397,16 @@ def trocar_conta_deriv():
     user = usuario_logado()
     data = request.get_json()
     
-    tipo_desejado = data.get('tipo', 'demo')  # 'demo' ou 'real'
+    tipo_desejado = data.get('tipo', 'demo')
     
     if not user.deriv_token:
         return jsonify({'success': False, 'error': 'Token não configurado'})
     
-    # Busca contas disponíveis
     result = run_async(deriv_authorize(user.deriv_token))
     
     if not result['success']:
         return jsonify(result)
     
-    # Encontra a conta do tipo desejado
     conta_encontrada = None
     for acc in result.get('account_list', []):
         is_virtual = acc.get('is_virtual', 1)
@@ -445,7 +447,6 @@ def robot_start():
     if not user.deriv_token:
         return jsonify({'status': 'error', 'message': 'Configure seu Token da Deriv primeiro!'})
     
-    # Testa conexão antes de iniciar
     result = run_async(deriv_authorize(user.deriv_token))
     if not result['success']:
         return jsonify({'status': 'error', 'message': f"Erro na conexão: {result['error']}"})
@@ -453,7 +454,9 @@ def robot_start():
     user.robot_ativo = True
     db.session.commit()
     
-    log = LogRobo(user_id=user.id, tipo='INFO', mensagem='Robô iniciado pelo usuário')
+    # NOVO: Log indica qual estratégia
+    estrategia_nome = 'Probabilidade' if user.estrategia_tipo == 'probability' else 'Técnica'
+    log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f'Robô iniciado - Estratégia: {estrategia_nome}')
     db.session.add(log)
     db.session.commit()
     
@@ -480,7 +483,6 @@ def robot_stop():
 def robot_status():
     user = usuario_logado()
     
-    # Busca logs recentes
     logs = LogRobo.query.filter_by(user_id=user.id).order_by(LogRobo.data.desc()).limit(20).all()
     logs_list = [{
         'tipo': l.tipo,
@@ -488,7 +490,6 @@ def robot_status():
         'data': l.data.strftime('%H:%M:%S')
     } for l in logs]
     
-    # Busca operações do dia
     hoje = datetime.utcnow().date()
     ops_hoje = Operacao.query.filter(
         Operacao.user_id == user.id,
@@ -504,7 +505,8 @@ def robot_status():
         'logs': logs_list,
         'lucro_dia': lucro_dia,
         'operacoes_dia': ops_dia,
-        'account_type': user.deriv_account_type or 'demo'
+        'account_type': user.deriv_account_type or 'demo',
+        'estrategia_tipo': user.estrategia_tipo or 'technical'
     })
 
 
@@ -600,7 +602,8 @@ def criar_usuario_teste():
         take_profit=100.0,
         max_operacoes_dia=50,
         tipo_gestao='fixo',
-        nivel_martingale=2.0
+        nivel_martingale=2.0,
+        estrategia_tipo='technical'
     )
     
     db.session.add(novo_user)
