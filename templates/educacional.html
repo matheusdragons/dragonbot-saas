@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutoriais - Dragon Bot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4757; --bg: #0b0e14; --bg-secondary: #161a23; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+        
+        .header { background: var(--bg-secondary); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d333f; }
+        .logo { text-decoration: none; }
+        .nav-menu { display: flex; gap: 10px; }
+        .nav-link { color: #888; text-decoration: none; padding: 10px 20px; border-radius: 8px; transition: all 0.3s; font-size: 14px; }
+        .nav-link:hover, .nav-link.active { color: var(--primary); background: rgba(0, 217, 255, 0.1); }
+        .nav-link.logout { color: var(--danger); }
+        
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        .container h1 { color: var(--primary); margin-bottom: 30px; }
+        
+        .tutorial-grid { display: grid; gap: 20px; }
+        .tutorial-card { background: var(--bg-secondary); border-radius: 15px; padding: 25px; border: 1px solid #2d333f; transition: all 0.3s; }
+        .tutorial-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .tutorial-card h3 { color: var(--success); margin-bottom: 10px; font-size: 18px; }
+        .tutorial-card p { color: #888; font-size: 14px; margin-bottom: 15px; line-height: 1.6; }
+        .tutorial-card .btn { display: inline-block; padding: 10px 20px; background: var(--primary); color: black; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; }
+        .tutorial-card .btn:hover { background: var(--success); }
+        
+        .video-placeholder { background: var(--bg); border-radius: 10px; padding: 40px; text-align: center; color: #555; margin-bottom: 15px; }
+        .video-placeholder span { font-size: 40px; display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/painel" class="logo">
+            <svg width="150" height="38" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#00d9ff" /><stop offset="100%" style="stop-color:#00ff88" /></linearGradient></defs>
+                <g transform="translate(5, 10)"><path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" stroke="url(#grad)" stroke-width="2.5" fill="none"/><rect x="8" y="12" width="3" height="10" fill="#00ff88"/><rect x="14" y="8" width="3" height="12" fill="#00d9ff"/><rect x="20" y="5" width="3" height="14" fill="#00ff88"/></g>
+                <text x="45" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text><text x="125" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="url(#grad)">BOT</text>
+            </svg>
+        </a>
+        <nav class="nav-menu">
+            <a href="/painel" class="nav-link">🤖 Robô</a>
+            <a href="/operacoes" class="nav-link">📊 Operações</a>
+            <a href="/educacional" class="nav-link active">📚 Tutoriais</a>
+            <a href="/conta" class="nav-link">👤 Conta</a>
+            <a href="/logout" class="nav-link logout">Sair</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1>📚 Central de Tutoriais</h1>
+        
+        <div class="tutorial-grid">
+            <div class="tutorial-card">
+                <h3>🏦 Como Criar Conta na Deriv</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Aprenda passo a passo como criar sua conta na corretora Deriv de forma rápida e segura.</p>
+            </div>
+            
+            <div class="tutorial-card">
+                <h3>🔑 Como Obter seu Token de API</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Tutorial completo sobre como gerar seu token de API na Deriv para conectar ao Dragon Bot.</p>
+            </div>
+            
+            <div class="tutorial-card">
+                <h3>⚙️ Configurando o Dragon Bot</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Saiba como configurar corretamente o robô: valor de entrada, stop loss, take profit e gestão de banca.</p>
+            </div>
+            
+            <div class="tutorial-card">
+                <h3>💰 Gestão de Banca</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Entenda as diferentes estratégias de gestão: Valor Fixo, Martingale e Soros. Qual usar e quando.</p>
+            </div>
+            
+            <div class="tutorial-card">
+                <h3>📊 Entendendo as Operações</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Como acompanhar suas operações, entender os logs e analisar seu desempenho.</p>
+            </div>
+            
+            <div class="tutorial-card">
+                <h3>❓ Dúvidas Frequentes</h3>
+                <div class="video-placeholder">
+                    <span>🎬</span>
+                    Vídeo em breve...
+                </div>
+                <p>Respostas para as dúvidas mais comuns sobre o Dragon Bot e trading automatizado.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
