@@ -1,9 +1,12 @@
 """
-DragonBot SaaS - Estratégia Over/Under com Ticks
-Versão: 2.1 - DEBUG MODE - Sempre gera sinal para teste
+DragonBot SaaS - Estratégia Simples: Differs do 7
+Versão: 3.0
+
+Regra: Se o último dígito for 7, aposta que o próximo NÃO será 7
+Contrato: DIGITDIFF com barrier 7
+Ativo: Volatility 10 Index (R_10)
 """
 
-from collections import Counter
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,22 +14,29 @@ logger = logging.getLogger(__name__)
 
 class Strategy:
     """
-    Estratégia baseada em análise de últimos dígitos dos ticks.
-    MODO DEBUG: Sempre gera sinal para testar execução.
+    Estratégia ultra simples: Differs do 7
+    
+    Quando o último dígito do preço for 7,
+    aposta que o próximo dígito será diferente de 7.
     """
     
     def __init__(self):
-        self.min_ticks = 10  # Reduzido para teste
-        self.trend_threshold = 0.55  # Reduzido para gerar mais sinais
-        self.total_signals = 0
-        self.signals_by_type = {'DIGITOVER': 0, 'DIGITUNDER': 0}
+        # Dígito alvo para monitorar
+        self.digito_alvo = 7
         
-        logger.info("📊 Strategy inicializada - MODO DEBUG ATIVO")
+        # Estatísticas
+        self.total_signals = 0
+        self.vezes_encontrou_7 = 0
+        
+        logger.info(f"📊 Estratégia: DIFFERS do {self.digito_alvo}")
+        logger.info(f"📊 Quando encontrar {self.digito_alvo}, aposta DIGITDIFF")
     
     def extract_last_digit(self, price):
         """Extrai o último dígito de um preço."""
         try:
+            # Converte para string e remove o ponto
             price_str = str(price).replace('.', '')
+            # Pega o último caractere
             digit = int(price_str[-1])
             return digit
         except (ValueError, IndexError) as e:
@@ -35,8 +45,13 @@ class Strategy:
     
     def analyze(self, ticks):
         """
-        Analisa lista de ticks e retorna sinal de trading.
-        MODO DEBUG: Sempre retorna um sinal válido.
+        Analisa os ticks e gera sinal se o último dígito for 7.
+        
+        Args:
+            ticks: Lista de preços
+            
+        Returns:
+            dict com sinal ou None
         """
         logger.info(f"🔍 Analisando {len(ticks) if ticks else 0} ticks...")
         
@@ -44,107 +59,66 @@ class Strategy:
             logger.error("❌ Nenhum tick recebido!")
             return None
         
-        if len(ticks) < self.min_ticks:
-            logger.warning(f"⚠️ Poucos ticks: {len(ticks)}/{self.min_ticks}")
-            # MODO DEBUG: Continua mesmo com poucos ticks
+        # Pega o último tick
+        ultimo_tick = ticks[-1]
         
-        # Extrai preços
-        prices = []
-        for tick in ticks:
-            if isinstance(tick, dict):
-                price = tick.get('quote') or tick.get('price')
-            else:
-                price = tick
-            if price:
-                prices.append(float(price))
-        
-        logger.info(f"📈 Preços extraídos: {len(prices)}")
-        
-        if not prices:
-            logger.error("❌ Nenhum preço extraído!")
-            return None
-        
-        # Extrai últimos dígitos
-        digits = []
-        for price in prices:
-            digit = self.extract_last_digit(price)
-            if digit is not None:
-                digits.append(digit)
-        
-        logger.info(f"🔢 Dígitos extraídos: {digits[-10:]}...")  # Últimos 10
-        
-        if not digits:
-            logger.error("❌ Nenhum dígito extraído!")
-            return None
-        
-        # Análise
-        last_price = prices[-1]
-        last_digit = digits[-1]
-        
-        digit_counts = Counter(digits)
-        total_digits = len(digits)
-        
-        over_count = sum(digit_counts.get(d, 0) for d in [5, 6, 7, 8, 9])
-        under_count = sum(digit_counts.get(d, 0) for d in [0, 1, 2, 3, 4])
-        
-        over_ratio = over_count / total_digits if total_digits > 0 else 0.5
-        under_ratio = under_count / total_digits if total_digits > 0 else 0.5
-        
-        logger.info(f"📊 Análise: Over={over_count}({over_ratio:.1%}) Under={under_count}({under_ratio:.1%})")
-        logger.info(f"📊 Último dígito: {last_digit} | Último preço: {last_price}")
-        
-        # ========== DECISÃO DO SINAL ==========
-        # MODO DEBUG: Sempre gera sinal baseado na análise
-        
-        if over_ratio > under_ratio:
-            # Mais Over que Under -> Aposta UNDER (reversão)
-            signal = {
-                'signal': 'DIGITUNDER',
-                'barrier': 4,  # Ganha se dígito for 0,1,2,3,4
-                'price': last_price,
-                'confidence': over_ratio,
-                'strategy': 'REVERSAO',
-                'reason': f'Over={over_ratio:.1%} > Under={under_ratio:.1%}, apostando UNDER',
-                'stats': {
-                    'over_ratio': over_ratio,
-                    'under_ratio': under_ratio,
-                    'last_digit': last_digit,
-                    'sample_size': total_digits
-                }
-            }
+        # Extrai o preço
+        if isinstance(ultimo_tick, dict):
+            ultimo_preco = ultimo_tick.get('quote') or ultimo_tick.get('price')
         else:
-            # Mais Under que Over -> Aposta OVER (reversão)
+            ultimo_preco = ultimo_tick
+        
+        if not ultimo_preco:
+            logger.error("❌ Não foi possível extrair o último preço!")
+            return None
+        
+        ultimo_preco = float(ultimo_preco)
+        
+        # Extrai o último dígito
+        ultimo_digito = self.extract_last_digit(ultimo_preco)
+        
+        if ultimo_digito is None:
+            logger.error("❌ Não foi possível extrair o último dígito!")
+            return None
+        
+        logger.info(f"📊 Último preço: {ultimo_preco}")
+        logger.info(f"🔢 Último dígito: {ultimo_digito}")
+        
+        # Verifica se é o dígito alvo (7)
+        if ultimo_digito == self.digito_alvo:
+            self.vezes_encontrou_7 += 1
+            self.total_signals += 1
+            
             signal = {
-                'signal': 'DIGITOVER',
-                'barrier': 5,  # Ganha se dígito for 5,6,7,8,9
-                'price': last_price,
-                'confidence': under_ratio,
-                'strategy': 'REVERSAO',
-                'reason': f'Under={under_ratio:.1%} >= Over={over_ratio:.1%}, apostando OVER',
-                'stats': {
-                    'over_ratio': over_ratio,
-                    'under_ratio': under_ratio,
-                    'last_digit': last_digit,
-                    'sample_size': total_digits
-                }
+                'signal': 'DIGITDIFF',
+                'barrier': self.digito_alvo,  # 7
+                'price': ultimo_preco,
+                'last_digit': ultimo_digito,
+                'confidence': 0.90,  # 90% chance de não ser 7 (1 em 10)
+                'strategy': 'DIFFERS_7',
+                'reason': f'Último dígito foi {self.digito_alvo}, apostando que o próximo será diferente'
             }
-        
-        # Atualiza estatísticas
-        self.total_signals += 1
-        self.signals_by_type[signal['signal']] += 1
-        
-        logger.info(f"✅ SINAL GERADO: {signal['signal']} | Barrier: {signal['barrier']}")
-        logger.info(f"📝 Razão: {signal['reason']}")
-        
-        return signal
+            
+            logger.info(f"🎯 SINAL GERADO!")
+            logger.info(f"   Tipo: DIGITDIFF")
+            logger.info(f"   Barrier: {self.digito_alvo}")
+            logger.info(f"   Aposta: Próximo dígito ≠ {self.digito_alvo}")
+            
+            return signal
+        else:
+            logger.info(f"⏳ Último dígito foi {ultimo_digito}, aguardando {self.digito_alvo}...")
+            return None
     
     def get_stats(self):
+        """Retorna estatísticas da estratégia."""
         return {
             'total_signals': self.total_signals,
-            'signals_by_type': self.signals_by_type,
-            'trend_threshold': self.trend_threshold
+            'vezes_encontrou_7': self.vezes_encontrou_7,
+            'digito_alvo': self.digito_alvo,
+            'estrategia': 'DIFFERS_7'
         }
     
     def reset_stats(self):
+        """Reseta estatísticas."""
         self.total_signals = 0
-        self.signals_by_type = {'DIGITOVER': 0, 'DIGITUNDER': 0}
+        self.vezes_encontrou_7 = 0
