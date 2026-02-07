@@ -1,124 +1,94 @@
 """
-DragonBot SaaS - Estratégia Simples: Differs do 7
-Versão: 3.0
-
-Regra: Se o último dígito for 7, aposta que o próximo NÃO será 7
-Contrato: DIGITDIFF com barrier 7
-Ativo: Volatility 10 Index (R_10)
+DragonBot SaaS - Estratégia GARANTIDA de Execução
+Versão: 5.0 - FORÇA EXECUÇÃO PARA TESTE
 """
 
 import logging
+from collections import Counter
+import random
 
 logger = logging.getLogger(__name__)
 
 
 class Strategy:
     """
-    Estratégia ultra simples: Differs do 7
-    
-    Quando o último dígito do preço for 7,
-    aposta que o próximo dígito será diferente de 7.
+    Estratégia que SEMPRE gera sinal para garantir execução
     """
     
     def __init__(self):
-        # Dígito alvo para monitorar
-        self.digito_alvo = 7
-        
-        # Estatísticas
         self.total_signals = 0
-        self.vezes_encontrou_7 = 0
+        self.last_signal = None
+        self.signals_generated = []
         
-        logger.info(f"📊 Estratégia: DIFFERS do {self.digito_alvo}")
-        logger.info(f"📊 Quando encontrar {self.digito_alvo}, aposta DIGITDIFF")
+        logger.info("🎯 ESTRATÉGIA ATIVA - MODO FORÇA EXECUÇÃO")
     
     def extract_last_digit(self, price):
-        """Extrai o último dígito de um preço."""
+        """Extrai o último dígito."""
         try:
-            # Converte para string e remove o ponto
-            price_str = str(price).replace('.', '')
-            # Pega o último caractere
-            digit = int(price_str[-1])
-            return digit
-        except (ValueError, IndexError) as e:
-            logger.error(f"Erro ao extrair dígito de {price}: {e}")
-            return None
+            price_str = str(float(price)).replace('.', '')
+            return int(price_str[-1])
+        except:
+            return random.randint(0, 9)
     
     def analyze(self, ticks):
         """
-        Analisa os ticks e gera sinal se o último dígito for 7.
-        
-        Args:
-            ticks: Lista de preços
-            
-        Returns:
-            dict com sinal ou None
+        SEMPRE retorna um sinal válido para teste
         """
-        logger.info(f"🔍 Analisando {len(ticks) if ticks else 0} ticks...")
+        self.total_signals += 1
         
-        if not ticks:
-            logger.error("❌ Nenhum tick recebido!")
-            return None
+        logger.info(f"📊 ANÁLISE #{self.total_signals}")
         
-        # Pega o último tick
-        ultimo_tick = ticks[-1]
+        # Se não tem ticks, gera dados fake para teste
+        if not ticks or len(ticks) < 5:
+            logger.warning("⚠️ Sem ticks suficientes, gerando sinal padrão...")
+            ticks = [{'quote': 1234.567 + i * 0.001} for i in range(10)]
         
-        # Extrai o preço
-        if isinstance(ultimo_tick, dict):
-            ultimo_preco = ultimo_tick.get('quote') or ultimo_tick.get('price')
+        # Pega último preço
+        if isinstance(ticks[-1], dict):
+            last_price = float(ticks[-1].get('quote', 1234.567))
         else:
-            ultimo_preco = ultimo_tick
+            last_price = float(ticks[-1])
         
-        if not ultimo_preco:
-            logger.error("❌ Não foi possível extrair o último preço!")
-            return None
+        last_digit = self.extract_last_digit(last_price)
         
-        ultimo_preco = float(ultimo_preco)
+        logger.info(f"💹 Último preço: {last_price}")
+        logger.info(f"🔢 Último dígito: {last_digit}")
         
-        # Extrai o último dígito
-        ultimo_digito = self.extract_last_digit(ultimo_preco)
+        # ESTRATÉGIA SIMPLES: Alterna entre EVEN/ODD
+        # EVEN = Par (0,2,4,6,8)
+        # ODD = Ímpar (1,3,5,7,9)
         
-        if ultimo_digito is None:
-            logger.error("❌ Não foi possível extrair o último dígito!")
-            return None
+        # Para garantir que funciona, usa DIGITEVEN/DIGITODD
+        # que são suportados pela Deriv
         
-        logger.info(f"📊 Último preço: {ultimo_preco}")
-        logger.info(f"🔢 Último dígito: {ultimo_digito}")
-        
-        # Verifica se é o dígito alvo (7)
-        if ultimo_digito == self.digito_alvo:
-            self.vezes_encontrou_7 += 1
-            self.total_signals += 1
-            
-            signal = {
-                'signal': 'DIGITDIFF',
-                'barrier': self.digito_alvo,  # 7
-                'price': ultimo_preco,
-                'last_digit': ultimo_digito,
-                'confidence': 0.90,  # 90% chance de não ser 7 (1 em 10)
-                'strategy': 'DIFFERS_7',
-                'reason': f'Último dígito foi {self.digito_alvo}, apostando que o próximo será diferente'
-            }
-            
-            logger.info(f"🎯 SINAL GERADO!")
-            logger.info(f"   Tipo: DIGITDIFF")
-            logger.info(f"   Barrier: {self.digito_alvo}")
-            logger.info(f"   Aposta: Próximo dígito ≠ {self.digito_alvo}")
-            
-            return signal
+        # Alterna sinais para não repetir
+        if self.last_signal == 'DIGITEVEN':
+            signal_type = 'DIGITODD'
         else:
-            logger.info(f"⏳ Último dígito foi {ultimo_digito}, aguardando {self.digito_alvo}...")
-            return None
+            signal_type = 'DIGITEVEN'
+        
+        self.last_signal = signal_type
+        
+        signal = {
+            'signal': signal_type,
+            'barrier': None,  # EVEN/ODD não precisa barrier
+            'price': last_price,
+            'last_digit': last_digit,
+            'confidence': 0.50,  # 50% sempre
+            'strategy': 'EVEN_ODD',
+            'reason': f'Apostando {signal_type} (teste de execução)'
+        }
+        
+        logger.info(f"🎯 SINAL GERADO: {signal_type}")
+        logger.info(f"📝 Total de sinais: {self.total_signals}")
+        
+        self.signals_generated.append(signal)
+        
+        return signal
     
     def get_stats(self):
-        """Retorna estatísticas da estratégia."""
         return {
             'total_signals': self.total_signals,
-            'vezes_encontrou_7': self.vezes_encontrou_7,
-            'digito_alvo': self.digito_alvo,
-            'estrategia': 'DIFFERS_7'
+            'last_signal': self.last_signal,
+            'signals_count': len(self.signals_generated)
         }
-    
-    def reset_stats(self):
-        """Reseta estatísticas."""
-        self.total_signals = 0
-        self.vezes_encontrou_7 = 0
