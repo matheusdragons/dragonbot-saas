@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timedelta
 from bot.deriv_api import DerivAPI
 from bot.strategy import Strategy
+from bot.strategy_probability import StrategyProbability
 
 class TradingRobot:
     
@@ -14,7 +15,21 @@ class TradingRobot:
             app_id=user_config.get('app_id', '1089'),
             token=user_config.get('token')
         )
-        self.strategy = Strategy()
+        
+        # Escolhe estratégia baseado na config do usuário
+        estrategia_tipo = user_config.get('estrategia_tipo', 'technical')
+        
+        if estrategia_tipo == 'probability':
+            self.strategy = StrategyProbability()
+            self.use_ticks = True
+            self.cycle_time = 10
+            self.wait_result = 20
+        else:
+            self.strategy = Strategy()
+            self.use_ticks = False
+            self.cycle_time = 30
+            self.wait_result = 310
+        
         self.running = False
         self.logs = []
         
@@ -33,7 +48,6 @@ class TradingRobot:
         }
         self.logs.append(entry)
         
-        # Mantém só os últimos 100 logs
         if len(self.logs) > 100:
             self.logs = self.logs[-100:]
         
@@ -43,7 +57,9 @@ class TradingRobot:
     async def start(self):
         """Inicia o robô"""
         self.running = True
-        self.log('INFO', 'Robô iniciando...')
+        
+        estrategia_nome = 'Probabilidade (Over/Under)' if self.use_ticks else 'Técnica (BB+RSI+VC)'
+        self.log('INFO', f'Robô iniciando com estratégia: {estrategia_nome}')
         
         try:
             await self.api.connect()
@@ -80,17 +96,22 @@ class TradingRobot:
                     break
                 
                 
-                # Busca candles
-                candles = await self.api.get_candles(symbol='R_75', count=100, granularity=300)
+                # Busca dados baseado na estratégia
+                if self.use_ticks:
+                    data = await self.api.get_ticks(symbol='R_75', count=50)
+                    data_type = 'ticks'
+                else:
+                    data = await self.api.get_candles(symbol='R_75', count=100, granularity=300)
+                    data_type = 'candles'
                 
-                if not candles:
-                    self.log('ERRO', 'Sem dados de candles')
+                if not data:
+                    self.log('ERRO', f'Sem dados de {data_type}')
                     await asyncio.sleep(10)
                     continue
                 
                 
                 # Analisa estratégia
-                signal = self.strategy.analyze(candles)
+                signal = self.strategy.analyze(data)
                 
                 if signal:
                     self.log('SINAL', f'{signal["signal"]} detectado!')
@@ -100,8 +121,8 @@ class TradingRobot:
                     await self.execute_trade(signal)
                 
                 
-                # Aguarda próximo ciclo (30 segundos)
-                await asyncio.sleep(30)
+                # Aguarda próximo ciclo
+                await asyncio.sleep(self.cycle_time)
                 
             except Exception as e:
                 self.log('ERRO', f'Erro no loop: {str(e)}')
@@ -116,23 +137,29 @@ class TradingRobot:
             
             self.log('ENTRADA', f'{contract_type} - ${amount:.2f}')
             
-            result = await self.api.buy_contract(
-                contract_type=contract_type,
-                amount=amount,
-                duration=5,
-                symbol='R_75'
-            )
+            # Prepara argumentos
+            kwargs = {
+                'contract_type': contract_type,
+                'amount': amount,
+                'duration': 5,
+                'symbol': 'R_75'
+            }
+            
+            # Se tem barrier (DIGITOVER/DIGITUNDER)
+            if 'barrier' in signal:
+                kwargs['barrier'] = signal['barrier']
+                self.log('INFO', f'Barrier: {signal["barrier"]}')
+            
+            result = await self.api.buy_contract(**kwargs)
             
             if 'buy' in result:
                 contract_id = result['buy']['contract_id']
                 self.log('INFO', f'Contrato: {contract_id}')
                 self.operacoes_hoje += 1
                 
-                # Aguarda resultado (5 minutos + margem)
-                await asyncio.sleep(310)
+                # Aguarda resultado
+                await asyncio.sleep(self.wait_result)
                 
-                # Aqui você buscaria o resultado real
-                # Por enquanto, registra como pendente
                 self.log('INFO', 'Aguardando resultado...')
                 
             else:
@@ -155,5 +182,5 @@ class TradingRobot:
             'operacoes_hoje': self.operacoes_hoje,
             'lucro_dia': self.lucro_dia,
             'prejuizo_dia': self.prejuizo_dia,
-            'logs': self.logs[-20:]  # Últimos 20 logs
+            'logs': self.logs[-20:]
         }
