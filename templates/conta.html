@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Conta - Dragon Bot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #00d9ff; --success: #00ff88; --danger: #ff4757; --bg: #0b0e14; --bg-secondary: #161a23; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+        
+        .header { background: var(--bg-secondary); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d333f; }
+        .logo { text-decoration: none; }
+        .nav-menu { display: flex; gap: 10px; }
+        .nav-link { color: #888; text-decoration: none; padding: 10px 20px; border-radius: 8px; transition: all 0.3s; font-size: 14px; }
+        .nav-link:hover, .nav-link.active { color: var(--primary); background: rgba(0, 217, 255, 0.1); }
+        .nav-link.logout { color: var(--danger); }
+        
+        .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        .card { background: var(--bg-secondary); border-radius: 15px; padding: 30px; border: 1px solid #2d333f; margin-bottom: 20px; }
+        .card h2 { color: var(--primary); margin-bottom: 25px; font-size: 20px; }
+        
+        .info-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #2d333f; }
+        .info-label { color: #888; }
+        .info-value { font-weight: bold; }
+        .badge { padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .badge.ativo { background: var(--success); color: black; }
+        .badge.inativo { background: var(--danger); color: white; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #888; }
+        .form-group input { width: 100%; padding: 12px; background: var(--bg); border: 1px solid #2d333f; border-radius: 8px; color: white; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: var(--primary); color: black; }
+        .btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/painel" class="logo">
+            <svg width="150" height="38" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#00d9ff" /><stop offset="100%" style="stop-color:#00ff88" /></linearGradient></defs>
+                <g transform="translate(5, 10)"><path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" stroke="url(#grad)" stroke-width="2.5" fill="none"/><rect x="8" y="12" width="3" height="10" fill="#00ff88"/><rect x="14" y="8" width="3" height="12" fill="#00d9ff"/><rect x="20" y="5" width="3" height="14" fill="#00ff88"/></g>
+                <text x="45" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text><text x="125" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="url(#grad)">BOT</text>
+            </svg>
+        </a>
+        <nav class="nav-menu">
+            <a href="/painel" class="nav-link">🤖 Robô</a>
+            <a href="/operacoes" class="nav-link">📊 Operações</a>
+            <a href="/educacional" class="nav-link">📚 Tutoriais</a>
+            <a href="/conta" class="nav-link active">👤 Conta</a>
+            <a href="/logout" class="nav-link logout">Sair</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>👤 Minha Conta</h2>
+            <div class="info-row">
+                <span class="info-label">E-mail</span>
+                <span class="info-value">{{ user.email }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Plano</span>
+                <span class="info-value">{{ user.plano | capitalize }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="badge {{ 'ativo' if user.status_assinatura == 'ativo' else 'inativo' }}">
+                    {{ user.status_assinatura | upper }}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Válido até</span>
+                <span class="info-value">{{ user.validade.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Membro desde</span>
+                <span class="info-value">{{ user.criado_em.strftime('%d/%m/%Y') }}</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🔒 Alterar Senha</h2>
+            <div class="form-group">
+                <label>Nova Senha</label>
+                <input type="password" id="nova_senha" placeholder="Mínimo 6 caracteres">
+            </div>
+            <button class="btn" onclick="alterarSenha()">ALTERAR SENHA</button>
+        </div>
+    </div>
+
+    <script>
+        function alterarSenha() {
+            const senha = document.getElementById('nova_senha').value;
+            if (senha.length < 6) { alert('Senha deve ter no mínimo 6 caracteres'); return; }
+            fetch('/api/alterar-senha', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({nova_senha: senha})
+            })
+            .then(res => res.json())
+            .then(data => { alert(data.message); document.getElementById('nova_senha').value = ''; });
+        }
+    </script>
+</body>
+</html>
