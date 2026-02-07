@@ -17,21 +17,17 @@ class Strategy:
     
     def __init__(self):
         # Configurações da estratégia
-        self.min_ticks = 20           # Mínimo de ticks para análise
-        self.trend_threshold = 0.60   # 60% para considerar tendência
-        self.rare_threshold = 0.05    # Dígito raro = menos de 5% de aparições
+        self.min_ticks = 20
+        self.trend_threshold = 0.60
+        self.rare_threshold = 0.05
         
         # Contadores para estatísticas
         self.total_signals = 0
         self.signals_by_type = {'DIGITOVER': 0, 'DIGITUNDER': 0}
     
     def extract_last_digit(self, price):
-        """
-        Extrai o último dígito de um preço.
-        Ex: 1234.567 → 7
-        """
+        """Extrai o último dígito de um preço."""
         try:
-            # Converte para string e pega último caractere numérico
             price_str = str(price).replace('.', '')
             return int(price_str[-1])
         except (ValueError, IndexError):
@@ -98,21 +94,17 @@ class Strategy:
         rarest_count = digit_counts[rarest_digit]
         rarest_ratio = rarest_count / total_digits
         
-        # Encontra dígito mais frequente
-        most_common_digit = max(digit_counts.keys(), key=lambda x: digit_counts[x])
-        
         # Log de análise
-        logger.info(f"📊 Análise: Over={over_ratio:.1%} Under={under_ratio:.1%} | "
+        logger.info(f"Análise: Over={over_ratio:.1%} Under={under_ratio:.1%} | "
                    f"Raro={rarest_digit}({rarest_ratio:.1%}) | Último={last_digit}")
         
         signal = None
         
-        # ========== ESTRATÉGIA 1: REVERSÃO POR TENDÊNCIA ==========
-        # Se muitos Over, aposta Under (reversão à média)
+        # ESTRATÉGIA 1: REVERSÃO POR TENDÊNCIA
         if over_ratio >= self.trend_threshold:
             signal = {
                 'signal': 'DIGITUNDER',
-                'barrier': 4,  # Ganha se último dígito for 0,1,2,3,4
+                'barrier': 4,
                 'price': last_price,
                 'confidence': over_ratio,
                 'strategy': 'REVERSAO_TENDENCIA',
@@ -125,11 +117,10 @@ class Strategy:
                 }
             }
         
-        # Se muitos Under, aposta Over (reversão à média)
         elif under_ratio >= self.trend_threshold:
             signal = {
                 'signal': 'DIGITOVER',
-                'barrier': 5,  # Ganha se último dígito for 5,6,7,8,9
+                'barrier': 5,
                 'price': last_price,
                 'confidence': under_ratio,
                 'strategy': 'REVERSAO_TENDENCIA',
@@ -142,12 +133,11 @@ class Strategy:
                 }
             }
         
-        # ========== ESTRATÉGIA 2: PADRÃO PAR/ÍMPAR ==========
-        elif even_count > odd_count * 1.5:  # 50% mais pares que ímpares
-            # Muitos pares, aposta em ímpar (OVER com barrier 4 inclui mais ímpares)
+        # ESTRATÉGIA 2: PADRÃO PAR/ÍMPAR
+        elif even_count > odd_count * 1.5:
             signal = {
                 'signal': 'DIGITOVER',
-                'barrier': 4,  # Ganha se >= 5 (inclui 5,7,9 ímpares)
+                'barrier': 4,
                 'price': last_price,
                 'confidence': even_count / total_digits,
                 'strategy': 'PAR_IMPAR',
@@ -160,10 +150,10 @@ class Strategy:
                 }
             }
         
-        elif odd_count > even_count * 1.5:  # 50% mais ímpares que pares
+        elif odd_count > even_count * 1.5:
             signal = {
                 'signal': 'DIGITUNDER',
-                'barrier': 5,  # Ganha se <= 4 (inclui 0,2,4 pares)
+                'barrier': 5,
                 'price': last_price,
                 'confidence': odd_count / total_digits,
                 'strategy': 'PAR_IMPAR',
@@ -176,8 +166,7 @@ class Strategy:
                 }
             }
         
-        # ========== ESTRATÉGIA 3: DÍGITO SEQUENCIAL ==========
-        # Se os últimos 3 dígitos são iguais, aposta em mudança
+        # ESTRATÉGIA 3: DÍGITO SEQUENCIAL
         elif len(digits) >= 3 and digits[-1] == digits[-2] == digits[-3]:
             repeated_digit = digits[-1]
             if repeated_digit >= 5:
@@ -209,15 +198,14 @@ class Strategy:
                     }
                 }
         
-        # ========== ESTRATÉGIA 4: FALLBACK - SEMPRE GERA SINAL ==========
-        # Para stress test, sempre gera um sinal baseado na distribuição atual
+        # ESTRATÉGIA 4: FALLBACK
         else:
             if over_ratio > under_ratio:
                 signal = {
                     'signal': 'DIGITUNDER',
                     'barrier': 4,
                     'price': last_price,
-                    'confidence': 0.52,  # Confiança baixa
+                    'confidence': 0.52,
                     'strategy': 'FALLBACK',
                     'reason': f'Fallback: Over={over_ratio:.1%} > Under={under_ratio:.1%}',
                     'stats': {
@@ -247,7 +235,7 @@ class Strategy:
         if signal:
             self.total_signals += 1
             self.signals_by_type[signal['signal']] += 1
-            logger.info(f"🎯 SINAL: {signal['signal']} barrier={signal['barrier']} "
+            logger.info(f"SINAL: {signal['signal']} barrier={signal['barrier']} "
                        f"({signal['strategy']}) conf={signal['confidence']:.1%}")
         
         return signal
