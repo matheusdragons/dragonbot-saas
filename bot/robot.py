@@ -1,6 +1,6 @@
 """
-DragonBot SaaS - Robô GARANTIDO de Executar
-Versão: 5.0 - FORÇA EXECUÇÃO
+DragonBot SaaS - Robô do Dígito 7
+Estratégia: Quando último dígito = 7, aposta DIGITDIFF
 """
 
 import asyncio
@@ -19,16 +19,16 @@ class TradingRobot:
         self.config = user_config
         self.user_id = user_config.get('user_id')
         
-        # Config básica
+        # Configurações
         self.deriv_token = user_config.get('deriv_token')
         self.deriv_app_id = user_config.get('deriv_app_id', '1089')
         self.valor_entrada = float(user_config.get('valor_entrada', 1.0))
         self.stop_loss = float(user_config.get('stop_loss', 50.0))
         self.take_profit = float(user_config.get('take_profit', 100.0))
-        self.max_operacoes = int(user_config.get('max_operacoes_dia', 10))
+        self.max_operacoes = int(user_config.get('max_operacoes_dia', 20))
         
-        # Ativo FIXO para garantir funcionamento
-        self.ativo = 'R_10'  # Volatility 10 Index
+        # Ativo fixo R_10 (Volatility 10)
+        self.ativo = 'R_10'
         
         # APIs
         self.api = DerivAPI(app_id=self.deriv_app_id, token=self.deriv_token)
@@ -38,6 +38,8 @@ class TradingRobot:
         self.running = False
         self.saldo_inicial = 0
         self.saldo_atual = 0
+        
+        # Contadores
         self.operacoes_hoje = 0
         self.wins = 0
         self.losses = 0
@@ -48,9 +50,10 @@ class TradingRobot:
         self.save_operation_callback = None
         self.save_log_callback = None
         
-        logger.info(f"🤖 ROBÔ INICIALIZADO - User: {self.user_id}")
+        logger.info(f"🤖 Robô do Dígito 7 iniciado - User: {self.user_id}")
     
     def log(self, tipo, mensagem):
+        """Registra log."""
         timestamp = datetime.now()
         log_entry = {
             'tipo': tipo,
@@ -67,150 +70,143 @@ class TradingRobot:
                 pass
     
     async def start(self):
-        """INICIA O ROBÔ E GARANTE EXECUÇÃO."""
+        """Inicia o robô."""
         self.log('INFO', '='*60)
-        self.log('INFO', '🚀 DRAGONBOT v5.0 - MODO FORÇA EXECUÇÃO')
+        self.log('INFO', '🎯 DRAGONBOT - ESTRATÉGIA DO DÍGITO 7')
         self.log('INFO', '='*60)
         
         try:
             # CONECTA
-            self.log('INFO', '🔌 Conectando à Deriv...')
             connected = await self.api.connect()
-            
             if not connected:
                 self.log('ERRO', '❌ Falha na conexão')
                 return False
             
-            self.log('INFO', '✅ Conectado com sucesso!')
+            self.log('INFO', '✅ Conectado à Deriv')
             
-            # AUTORIZA (se tiver token)
-            if self.deriv_token:
-                if not self.api.is_authorized():
-                    self.log('ERRO', '❌ Token inválido')
-                    return False
-                
-                # PEGA SALDO
+            # AUTORIZA
+            if self.api.token and not self.api.is_authorized():
+                self.log('ERRO', '❌ Falha na autorização')
+                return False
+            
+            # PEGA SALDO
+            if self.api.is_authorized():
                 balance = await self.api.get_balance()
                 if balance:
                     self.saldo_inicial = balance['balance']
                     self.saldo_atual = self.saldo_inicial
-                    self.log('INFO', f'💰 Saldo: ${self.saldo_inicial:.2f}')
-            else:
-                self.log('INFO', '⚠️ Operando sem token (modo demo)')
-                self.saldo_inicial = 10000
-                self.saldo_atual = 10000
+                    self.log('INFO', f'💰 Saldo: ${self.saldo_inicial:.2f} {balance["currency"]}')
             
-            # ATIVA ROBÔ
+            # INICIA
             self.running = True
-            self.log('INFO', '='*60)
-            self.log('INFO', '✅ ROBÔ ATIVO - INICIANDO OPERAÇÕES!')
+            self.log('INFO', '✅ Robô ativo!')
             self.log('INFO', f'📊 Ativo: {self.ativo}')
             self.log('INFO', f'💵 Entrada: ${self.valor_entrada}')
-            self.log('INFO', f'🎯 Max Operações: {self.max_operacoes}')
+            self.log('INFO', '🎯 Estratégia: Se dígito = 7, aposta DIGITDIFF')
             self.log('INFO', '='*60)
             
-            # INICIA LOOP
+            # LOOP PRINCIPAL
             await self.run_loop()
             return True
             
         except Exception as e:
-            self.log('ERRO', f'❌ ERRO CRÍTICO: {e}')
+            self.log('ERRO', f'❌ Erro: {e}')
             return False
     
     async def run_loop(self):
-        """LOOP QUE GARANTE EXECUÇÃO DE TRADES."""
+        """Loop principal que procura o dígito 7."""
         
-        operation_count = 0
-        wait_time = 15  # Segundos entre operações
+        checks_without_seven = 0
         
-        while self.running and operation_count < self.max_operacoes:
+        while self.running and self.operacoes_hoje < self.max_operacoes:
             try:
-                operation_count += 1
+                # BUSCA TICKS
+                ticks = await self.api.get_ticks(symbol=self.ativo, count=5)
                 
-                self.log('INFO', '='*60)
-                self.log('INFO', f'📊 OPERAÇÃO #{operation_count}')
-                self.log('INFO', '='*60)
+                if not ticks:
+                    self.log('ERRO', '❌ Sem dados de ticks')
+                    await asyncio.sleep(5)
+                    continue
                 
-                # BUSCA DADOS (ou usa fake se falhar)
-                self.log('INFO', f'📈 Analisando {self.ativo}...')
-                ticks = await self.api.get_ticks(symbol=self.ativo, count=10)
-                
-                # GERA SINAL (sempre retorna algo)
+                # ANALISA
                 signal = self.strategy.analyze(ticks)
                 
                 if signal:
-                    self.log('SINAL', f'🎯 SINAL DETECTADO: {signal["signal"]}')
+                    # ENCONTROU O 7!
+                    self.log('SINAL', '🎯 DÍGITO 7 DETECTADO!')
                     
                     # EXECUTA TRADE
-                    success = await self.execute_trade(signal)
+                    success = await self.execute_digitdiff_trade()
                     
                     if success:
-                        self.log('INFO', f'✅ Trade #{operation_count} executado!')
+                        self.log('INFO', '✅ Trade executado!')
+                        # Espera um pouco após executar
+                        await asyncio.sleep(10)
                     else:
-                        self.log('ERRO', f'❌ Falha no trade #{operation_count}')
+                        self.log('ERRO', '❌ Falha no trade')
+                        await asyncio.sleep(5)
                     
-                    # ESPERA ENTRE TRADES
-                    self.log('INFO', f'⏳ Aguardando {wait_time}s para próximo trade...')
-                    await asyncio.sleep(wait_time)
+                    checks_without_seven = 0
                 else:
-                    self.log('INFO', '⏳ Aguardando 5s...')
-                    await asyncio.sleep(5)
+                    # NÃO É 7, CONTINUA PROCURANDO
+                    checks_without_seven += 1
+                    
+                    if checks_without_seven % 10 == 0:
+                        self.log('INFO', f'⏳ {checks_without_seven} verificações sem encontrar 7...')
+                    
+                    # Espera 2 segundos e verifica novamente
+                    await asyncio.sleep(2)
                 
                 # VERIFICA LIMITES
                 if self.lucro_total <= -self.stop_loss:
-                    self.log('INFO', f'🛑 STOP LOSS: ${self.lucro_total:.2f}')
+                    self.log('INFO', f'🛑 Stop Loss: ${self.lucro_total:.2f}')
                     break
                 
                 if self.lucro_total >= self.take_profit:
-                    self.log('INFO', f'🎉 TAKE PROFIT: ${self.lucro_total:.2f}')
+                    self.log('INFO', f'🎉 Take Profit: ${self.lucro_total:.2f}')
                     break
-                
+                    
             except Exception as e:
                 self.log('ERRO', f'❌ Erro no loop: {e}')
                 await asyncio.sleep(5)
         
+        # FINALIZA
         self.log('INFO', '='*60)
-        self.log('INFO', '🏁 SESSÃO FINALIZADA')
-        self.log('INFO', f'📊 Total: {self.wins}W / {self.losses}L')
+        self.log('INFO', '🏁 Sessão finalizada')
+        self.log('INFO', f'📊 Resultado: {self.wins}W / {self.losses}L')
         self.log('INFO', f'💰 Lucro: ${self.lucro_total:.2f}')
         self.log('INFO', '='*60)
         
         await self.api.disconnect()
     
-    async def execute_trade(self, signal):
-        """EXECUTA O TRADE."""
+    async def execute_digitdiff_trade(self):
+        """Executa trade DIGITDIFF quando encontra o 7."""
         try:
-            stake = self.valor_entrada
-            contract_type = signal['signal']
-            
             self.log('ENTRADA', '='*50)
-            self.log('ENTRADA', f'💰 EXECUTANDO TRADE')
-            self.log('ENTRADA', f'   Tipo: {contract_type}')
-            self.log('ENTRADA', f'   Valor: ${stake:.2f}')
+            self.log('ENTRADA', '💰 EXECUTANDO DIGITDIFF')
+            self.log('ENTRADA', f'   Barrier: 7 (aposta que próximo ≠ 7)')
+            self.log('ENTRADA', f'   Valor: ${self.valor_entrada:.2f}')
             self.log('ENTRADA', '='*50)
             
-            # COMPRA CONTRATO
-            contract = await self.api.buy_contract(
-                contract_type=contract_type,
-                amount=stake,
-                duration=1,
-                symbol=self.ativo,
-                duration_unit='t'
+            # COMPRA DIGITDIFF
+            contract = await self.api.buy_digitdiff(
+                amount=self.valor_entrada,
+                barrier=7,
+                symbol=self.ativo
             )
             
             if not contract:
-                self.log('ERRO', '❌ Falha ao comprar contrato')
-                # Mesmo falhando, conta como operação
+                self.log('ERRO', '❌ Falha ao comprar DIGITDIFF')
                 self.operacoes_hoje += 1
                 self.losses += 1
-                self.lucro_total -= stake
+                self.lucro_total -= self.valor_entrada
                 return False
             
             contract_id = contract['contract_id']
             self.operacoes_hoje += 1
             
             # AGUARDA RESULTADO
-            result = await self.api.check_contract_result(contract_id, timeout=30)
+            result = await self.api.check_result(contract_id)
             
             if result:
                 profit = result['profit']
@@ -218,32 +214,34 @@ class TradingRobot:
                 
                 if status == 'WIN':
                     self.wins += 1
-                    self.log('RESULTADO', f'🎉 WIN! +${profit:.2f}')
+                    self.log('RESULTADO', f'🎉 WIN! Próximo ≠ 7 | +${profit:.2f}')
                 else:
                     self.losses += 1
-                    self.log('RESULTADO', f'😔 LOSS! ${profit:.2f}')
+                    self.log('RESULTADO', f'😔 LOSS! Próximo = 7 | ${profit:.2f}')
                 
                 self.lucro_total += profit
                 self.saldo_atual = self.saldo_inicial + self.lucro_total
                 
-                # SALVA NO BANCO
+                # Salva no banco
                 if self.save_operation_callback:
                     try:
                         self.save_operation_callback(
                             user_id=self.user_id,
-                            tipo=contract_type,
+                            tipo='DIGITDIFF',
                             ativo=self.ativo,
-                            valor=stake,
+                            valor=self.valor_entrada,
                             resultado=status,
                             lucro=profit,
-                            barrier=None,
-                            confianca=0.5
+                            barrier='7',
+                            confianca=0.90
                         )
                     except:
                         pass
                 
-                # ESTATÍSTICAS
-                win_rate = (self.wins / (self.wins + self.losses)) * 100 if (self.wins + self.losses) > 0 else 0
+                # Estatísticas
+                total = self.wins + self.losses
+                win_rate = (self.wins / total * 100) if total > 0 else 0
+                
                 self.log('INFO', f'📊 Score: {self.wins}W/{self.losses}L ({win_rate:.1f}%)')
                 self.log('INFO', f'💰 Lucro Total: ${self.lucro_total:.2f}')
                 
@@ -260,7 +258,7 @@ class TradingRobot:
         self.running = False
     
     def get_status(self):
-        win_rate = (self.wins / (self.wins + self.losses)) * 100 if (self.wins + self.losses) > 0 else 0
+        win_rate = (self.wins / (self.wins + self.losses) * 100) if (self.wins + self.losses) > 0 else 0
         
         return {
             'running': self.running,
@@ -274,5 +272,6 @@ class TradingRobot:
             'losses': self.losses,
             'win_rate': win_rate,
             'lucro_total': self.lucro_total,
-            'logs': list(self.logs)[-20:]
+            'logs': list(self.logs)[-20:],
+            'strategy': 'DIGIT_7'
         }
