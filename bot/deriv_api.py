@@ -7,7 +7,6 @@ import json
 import asyncio
 import websockets
 import logging
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,7 @@ class DerivAPI:
         self.authorized = False
         self.account_info = None
         self.base_url = f"wss://ws.binaryws.com/websockets/v3?app_id={app_id}"
-        
-        # Controle de requisições
         self.req_id = 0
-        self.pending_requests = {}
     
     def _next_req_id(self):
         """Gera próximo ID de requisição."""
@@ -39,7 +35,7 @@ class DerivAPI:
     async def connect(self):
         """Estabelece conexão WebSocket."""
         try:
-            logger.info(f"🔌 Conectando à Deriv API...")
+            logger.info(f"Conectando à Deriv API...")
             self.ws = await websockets.connect(
                 self.base_url,
                 ping_interval=30,
@@ -47,23 +43,22 @@ class DerivAPI:
                 close_timeout=5
             )
             self.connected = True
-            logger.info("✅ Conectado ao WebSocket da Deriv")
+            logger.info("Conectado ao WebSocket da Deriv")
             
-            # Autoriza se tiver token
             if self.token:
                 await self.authorize()
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erro ao conectar: {e}")
+            logger.error(f"Erro ao conectar: {e}")
             self.connected = False
             return False
     
     async def authorize(self):
         """Autoriza com token da API."""
         if not self.token:
-            logger.error("❌ Token não fornecido")
+            logger.error("Token não fornecido")
             return None
         
         try:
@@ -77,20 +72,20 @@ class DerivAPI:
             data = json.loads(response)
             
             if 'error' in data:
-                logger.error(f"❌ Erro de autorização: {data['error']['message']}")
+                logger.error(f"Erro de autorização: {data['error']['message']}")
                 return None
             
             if 'authorize' in data:
                 self.authorized = True
                 self.account_info = data['authorize']
-                logger.info(f"✅ Autorizado: {self.account_info.get('email', 'N/A')} | "
+                logger.info(f"Autorizado: {self.account_info.get('email', 'N/A')} | "
                           f"Saldo: {self.account_info.get('balance', 0)} {self.account_info.get('currency', 'USD')}")
                 return self.account_info
             
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro na autorização: {e}")
+            logger.error(f"Erro na autorização: {e}")
             return None
     
     async def get_balance(self):
@@ -107,7 +102,7 @@ class DerivAPI:
             data = json.loads(response)
             
             if 'error' in data:
-                logger.error(f"❌ Erro ao buscar saldo: {data['error']['message']}")
+                logger.error(f"Erro ao buscar saldo: {data['error']['message']}")
                 return None
             
             if 'balance' in data:
@@ -119,19 +114,12 @@ class DerivAPI:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao buscar saldo: {e}")
+            logger.error(f"Erro ao buscar saldo: {e}")
             return None
     
     async def get_ticks(self, symbol="R_75", count=50):
         """
         Busca histórico de ticks (preços individuais).
-        
-        Args:
-            symbol: Ativo (R_75, R_100, etc)
-            count: Quantidade de ticks
-            
-        Returns:
-            Lista de preços ou None
         """
         try:
             request = {
@@ -147,14 +135,13 @@ class DerivAPI:
             data = json.loads(response)
             
             if 'error' in data:
-                logger.error(f"❌ Erro ao buscar ticks: {data['error']['message']}")
+                logger.error(f"Erro ao buscar ticks: {data['error']['message']}")
                 return None
             
             if 'history' in data:
                 prices = data['history'].get('prices', [])
                 times = data['history'].get('times', [])
                 
-                # Retorna lista de dicts com preço e timestamp
                 ticks = []
                 for i, price in enumerate(prices):
                     ticks.append({
@@ -162,27 +149,17 @@ class DerivAPI:
                         'epoch': times[i] if i < len(times) else None
                     })
                 
-                logger.info(f"📊 Recebidos {len(ticks)} ticks de {symbol}")
+                logger.info(f"Recebidos {len(ticks)} ticks de {symbol}")
                 return ticks
             
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao buscar ticks: {e}")
+            logger.error(f"Erro ao buscar ticks: {e}")
             return None
     
     async def get_candles(self, symbol="R_75", count=100, granularity=300):
-        """
-        Busca histórico de candles (para estratégia técnica).
-        
-        Args:
-            symbol: Ativo
-            count: Quantidade de candles
-            granularity: Tempo em segundos (300 = 5min)
-            
-        Returns:
-            Lista de candles ou None
-        """
+        """Busca histórico de candles."""
         try:
             request = {
                 "ticks_history": symbol,
@@ -198,38 +175,26 @@ class DerivAPI:
             data = json.loads(response)
             
             if 'error' in data:
-                logger.error(f"❌ Erro ao buscar candles: {data['error']['message']}")
+                logger.error(f"Erro ao buscar candles: {data['error']['message']}")
                 return None
             
             if 'candles' in data:
                 candles = data['candles']
-                logger.info(f"📊 Recebidos {len(candles)} candles de {symbol}")
+                logger.info(f"Recebidos {len(candles)} candles de {symbol}")
                 return candles
             
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao buscar candles: {e}")
+            logger.error(f"Erro ao buscar candles: {e}")
             return None
     
     async def buy_contract(self, contract_type, amount, duration=5, symbol="R_75", 
                           duration_unit="t", barrier=None):
         """
         Compra um contrato de opção.
-        
-        Args:
-            contract_type: CALL, PUT, DIGITOVER, DIGITUNDER
-            amount: Valor da aposta
-            duration: Duração (em ticks ou minutos)
-            symbol: Ativo
-            duration_unit: 't' para ticks, 'm' para minutos
-            barrier: Para DIGIT*, o dígito de referência (0-9)
-            
-        Returns:
-            Dados do contrato ou None
         """
         try:
-            # Monta proposta
             proposal = {
                 "proposal": 1,
                 "amount": amount,
@@ -242,31 +207,28 @@ class DerivAPI:
                 "req_id": self._next_req_id()
             }
             
-            # Adiciona barrier para contratos DIGIT
             if barrier is not None and "DIGIT" in contract_type:
                 proposal["barrier"] = str(barrier)
             
-            logger.info(f"📝 Solicitando proposta: {contract_type} {symbol} ${amount} "
+            logger.info(f"Solicitando proposta: {contract_type} {symbol} ${amount} "
                        f"dur={duration}{duration_unit} barrier={barrier}")
             
-            # Envia proposta
             await self.ws.send(json.dumps(proposal))
             response = await self.ws.recv()
             data = json.loads(response)
             
             if 'error' in data:
-                logger.error(f"❌ Erro na proposta: {data['error']['message']}")
+                logger.error(f"Erro na proposta: {data['error']['message']}")
                 return None
             
             if 'proposal' not in data:
-                logger.error("❌ Resposta sem proposta")
+                logger.error("Resposta sem proposta")
                 return None
             
             proposal_id = data['proposal']['id']
             payout = data['proposal'].get('payout', 0)
-            logger.info(f"✅ Proposta recebida: ID={proposal_id} | Payout=${payout}")
+            logger.info(f"Proposta recebida: ID={proposal_id} | Payout=${payout}")
             
-            # Compra o contrato
             buy_request = {
                 "buy": proposal_id,
                 "price": amount,
@@ -278,7 +240,7 @@ class DerivAPI:
             buy_data = json.loads(buy_response)
             
             if 'error' in buy_data:
-                logger.error(f"❌ Erro na compra: {buy_data['error']['message']}")
+                logger.error(f"Erro na compra: {buy_data['error']['message']}")
                 return None
             
             if 'buy' in buy_data:
@@ -286,7 +248,7 @@ class DerivAPI:
                 contract_id = contract.get('contract_id')
                 buy_price = contract.get('buy_price', amount)
                 
-                logger.info(f"✅ CONTRATO COMPRADO: ID={contract_id} | Preço=${buy_price}")
+                logger.info(f"CONTRATO COMPRADO: ID={contract_id} | Preço=${buy_price}")
                 
                 return {
                     'contract_id': contract_id,
@@ -300,22 +262,12 @@ class DerivAPI:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao comprar contrato: {e}")
+            logger.error(f"Erro ao comprar contrato: {e}")
             return None
     
     async def check_contract_result(self, contract_id, timeout=60):
-        """
-        Aguarda e verifica resultado de um contrato.
-        
-        Args:
-            contract_id: ID do contrato
-            timeout: Tempo máximo de espera em segundos
-            
-        Returns:
-            Dict com resultado (status, profit) ou None
-        """
+        """Aguarda e verifica resultado de um contrato."""
         try:
-            # Subscreve para atualizações do contrato
             request = {
                 "proposal_open_contract": 1,
                 "contract_id": contract_id,
@@ -328,10 +280,9 @@ class DerivAPI:
             start_time = asyncio.get_event_loop().time()
             
             while True:
-                # Verifica timeout
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > timeout:
-                    logger.warning(f"⏰ Timeout aguardando resultado do contrato {contract_id}")
+                    logger.warning(f"Timeout aguardando resultado do contrato {contract_id}")
                     return None
                 
                 try:
@@ -348,7 +299,7 @@ class DerivAPI:
                             
                             result = 'WIN' if profit > 0 else 'LOSS'
                             
-                            logger.info(f"📊 RESULTADO: {result} | Lucro: ${profit:.2f}")
+                            logger.info(f"RESULTADO: {result} | Lucro: ${profit:.2f}")
                             
                             return {
                                 'status': result,
@@ -357,19 +308,18 @@ class DerivAPI:
                                 'contract_id': contract_id
                             }
                         
-                        # Ainda em aberto
                         current_profit = contract.get('profit', 0)
-                        logger.debug(f"⏳ Contrato em aberto... Profit atual: ${current_profit:.2f}")
+                        logger.debug(f"Contrato em aberto... Profit atual: ${current_profit:.2f}")
                         
                 except asyncio.TimeoutError:
                     continue
                     
         except Exception as e:
-            logger.error(f"❌ Erro ao verificar contrato: {e}")
+            logger.error(f"Erro ao verificar contrato: {e}")
             return None
     
     async def get_account_list(self):
-        """Lista todas as contas disponíveis (demo e real)."""
+        """Lista todas as contas disponíveis."""
         try:
             request = {
                 "account_list": 1,
@@ -386,7 +336,7 @@ class DerivAPI:
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao listar contas: {e}")
+            logger.error(f"Erro ao listar contas: {e}")
             return None
     
     async def disconnect(self):
@@ -396,9 +346,9 @@ class DerivAPI:
                 await self.ws.close()
                 self.connected = False
                 self.authorized = False
-                logger.info("🔌 Desconectado da Deriv API")
+                logger.info("Desconectado da Deriv API")
         except Exception as e:
-            logger.error(f"❌ Erro ao desconectar: {e}")
+            logger.error(f"Erro ao desconectar: {e}")
     
     def is_connected(self):
         """Verifica se está conectado."""
