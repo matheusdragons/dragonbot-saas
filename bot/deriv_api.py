@@ -1,6 +1,6 @@
 """
 DragonBot SaaS - API de Comunicação com Deriv
-Versão: 2.1 - DEBUG MODE
+Versão: 3.0 - Suporte a DIGITDIFF
 """
 
 import json
@@ -30,7 +30,7 @@ class DerivAPI:
     
     async def connect(self):
         try:
-            logger.info(f"🔌 Conectando: {self.base_url}")
+            logger.info(f"🔌 Conectando à Deriv...")
             self.ws = await websockets.connect(
                 self.base_url,
                 ping_interval=30,
@@ -64,12 +64,10 @@ class DerivAPI:
                 "req_id": self._next_req_id()
             }
             
-            logger.info("🔐 Enviando autorização...")
+            logger.info("🔐 Autorizando...")
             await self.ws.send(json.dumps(request))
             response = await self.ws.recv()
             data = json.loads(response)
-            
-            logger.debug(f"📥 Resposta auth: {json.dumps(data, indent=2)}")
             
             if 'error' in data:
                 logger.error(f"❌ Erro auth: {data['error']['message']}")
@@ -80,14 +78,8 @@ class DerivAPI:
                 self.account_info = data['authorize']
                 balance = self.account_info.get('balance', 0)
                 currency = self.account_info.get('currency', 'USD')
-                email = self.account_info.get('email', 'N/A')
-                loginid = self.account_info.get('loginid', 'N/A')
                 
-                logger.info(f"✅ Autorizado!")
-                logger.info(f"   📧 Email: {email}")
-                logger.info(f"   🆔 Login ID: {loginid}")
-                logger.info(f"   💰 Saldo: {balance} {currency}")
-                
+                logger.info(f"✅ Autorizado! Saldo: {balance} {currency}")
                 return self.account_info
             
             return None
@@ -124,7 +116,8 @@ class DerivAPI:
             logger.error(f"❌ Erro ao buscar saldo: {e}")
             return None
     
-    async def get_ticks(self, symbol="R_75", count=50):
+    async def get_ticks(self, symbol="R_10", count=20):
+        """Busca histórico de ticks."""
         try:
             request = {
                 "ticks_history": symbol,
@@ -134,7 +127,7 @@ class DerivAPI:
                 "req_id": self._next_req_id()
             }
             
-            logger.info(f"📊 Buscando {count} ticks de {symbol}...")
+            logger.info(f"📊 Buscando ticks de {symbol}...")
             await self.ws.send(json.dumps(request))
             response = await self.ws.recv()
             data = json.loads(response)
@@ -156,25 +149,25 @@ class DerivAPI:
                 
                 logger.info(f"✅ Recebidos {len(ticks)} ticks")
                 if ticks:
-                    logger.info(f"   Último preço: {ticks[-1]['quote']}")
+                    logger.info(f"   Último: {ticks[-1]['quote']}")
                 
                 return ticks
             
-            logger.warning("⚠️ Resposta sem 'history'")
             return None
             
         except Exception as e:
             logger.error(f"❌ Erro ao buscar ticks: {e}")
             return None
     
-    async def buy_contract(self, contract_type, amount, duration=5, symbol="R_75", 
+    async def buy_contract(self, contract_type, amount, duration=5, symbol="R_10", 
                           duration_unit="t", barrier=None):
+        """
+        Compra um contrato.
+        
+        contract_type: DIGITDIFF, DIGITMATCH, DIGITOVER, DIGITUNDER, etc
+        barrier: Para DIGITDIFF, é o dígito que NÃO deve aparecer (0-9)
+        """
         try:
-            # Para contratos DIGIT, barrier é obrigatório
-            if "DIGIT" in contract_type and barrier is None:
-                logger.error("❌ Barrier obrigatório para contratos DIGIT!")
-                return None
-            
             # Monta proposta
             proposal = {
                 "proposal": 1,
@@ -188,42 +181,36 @@ class DerivAPI:
                 "req_id": self._next_req_id()
             }
             
-            # Adiciona barrier para contratos DIGIT
+            # Adiciona barrier (obrigatório para DIGIT*)
             if barrier is not None:
                 proposal["barrier"] = str(barrier)
             
-            logger.info(f"📝 Proposta: {contract_type} | {symbol} | ${amount}")
-            logger.info(f"   Duration: {duration}{duration_unit} | Barrier: {barrier}")
-            logger.debug(f"   Request: {json.dumps(proposal)}")
+            logger.info(f"📝 Proposta: {contract_type}")
+            logger.info(f"   Ativo: {symbol}")
+            logger.info(f"   Valor: ${amount}")
+            logger.info(f"   Duração: {duration} ticks")
+            logger.info(f"   Barrier: {barrier}")
             
             # Envia proposta
             await self.ws.send(json.dumps(proposal))
             response = await self.ws.recv()
             data = json.loads(response)
             
-            logger.debug(f"📥 Resposta proposta: {json.dumps(data, indent=2)}")
-            
             if 'error' in data:
                 error_msg = data['error'].get('message', 'Erro desconhecido')
-                error_code = data['error'].get('code', 'N/A')
-                logger.error(f"❌ Erro proposta: [{error_code}] {error_msg}")
+                logger.error(f"❌ Erro proposta: {error_msg}")
                 return None
             
             if 'proposal' not in data:
-                logger.error("❌ Resposta sem proposta!")
-                logger.error(f"   Resposta: {data}")
+                logger.error(f"❌ Resposta sem proposta: {data}")
                 return None
             
             proposal_id = data['proposal']['id']
             payout = data['proposal'].get('payout', 0)
-            ask_price = data['proposal'].get('ask_price', amount)
             
-            logger.info(f"✅ Proposta recebida!")
-            logger.info(f"   ID: {proposal_id}")
-            logger.info(f"   Payout: ${payout}")
-            logger.info(f"   Ask Price: ${ask_price}")
+            logger.info(f"✅ Proposta recebida! Payout: ${payout}")
             
-            # Compra o contrato
+            # Compra
             buy_request = {
                 "buy": proposal_id,
                 "price": float(amount),
@@ -235,12 +222,9 @@ class DerivAPI:
             buy_response = await self.ws.recv()
             buy_data = json.loads(buy_response)
             
-            logger.debug(f"📥 Resposta compra: {json.dumps(buy_data, indent=2)}")
-            
             if 'error' in buy_data:
                 error_msg = buy_data['error'].get('message', 'Erro desconhecido')
-                error_code = buy_data['error'].get('code', 'N/A')
-                logger.error(f"❌ Erro compra: [{error_code}] {error_msg}")
+                logger.error(f"❌ Erro compra: {error_msg}")
                 return None
             
             if 'buy' in buy_data:
@@ -249,8 +233,8 @@ class DerivAPI:
                 buy_price = contract.get('buy_price', amount)
                 
                 logger.info(f"🎉 CONTRATO COMPRADO!")
-                logger.info(f"   Contract ID: {contract_id}")
-                logger.info(f"   Buy Price: ${buy_price}")
+                logger.info(f"   ID: {contract_id}")
+                logger.info(f"   Preço: ${buy_price}")
                 
                 return {
                     'contract_id': contract_id,
@@ -261,16 +245,16 @@ class DerivAPI:
                     'barrier': barrier
                 }
             
-            logger.error("❌ Resposta de compra inválida!")
             return None
             
         except Exception as e:
-            logger.error(f"❌ Erro ao comprar contrato: {e}")
+            logger.error(f"❌ Erro ao comprar: {e}")
             import traceback
             logger.error(traceback.format_exc())
             return None
     
     async def check_contract_result(self, contract_id, timeout=60):
+        """Aguarda resultado do contrato."""
         try:
             request = {
                 "proposal_open_contract": 1,
@@ -279,7 +263,7 @@ class DerivAPI:
                 "req_id": self._next_req_id()
             }
             
-            logger.info(f"⏳ Aguardando resultado do contrato {contract_id}...")
+            logger.info(f"⏳ Aguardando resultado...")
             await self.ws.send(json.dumps(request))
             
             start_time = asyncio.get_event_loop().time()
@@ -287,7 +271,7 @@ class DerivAPI:
             while True:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > timeout:
-                    logger.warning(f"⏰ Timeout após {timeout}s")
+                    logger.warning(f"⏰ Timeout!")
                     return None
                 
                 try:
@@ -299,33 +283,23 @@ class DerivAPI:
                         status = contract.get('status')
                         is_sold = contract.get('is_sold')
                         
-                        logger.debug(f"   Status: {status} | is_sold: {is_sold}")
-                        
                         if status == 'sold' or is_sold:
                             profit = contract.get('profit', 0)
-                            sell_price = contract.get('sell_price', 0)
-                            
                             result = 'WIN' if profit > 0 else 'LOSS'
                             
-                            logger.info(f"📊 RESULTADO: {result}")
-                            logger.info(f"   Profit: ${profit:.2f}")
-                            logger.info(f"   Sell Price: ${sell_price:.2f}")
+                            logger.info(f"📊 RESULTADO: {result} | ${profit:.2f}")
                             
                             return {
                                 'status': result,
                                 'profit': profit,
-                                'sell_price': sell_price,
                                 'contract_id': contract_id
                             }
                         
                 except asyncio.TimeoutError:
-                    logger.debug(f"   Aguardando... ({elapsed:.0f}s)")
                     continue
                     
         except Exception as e:
             logger.error(f"❌ Erro ao verificar contrato: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             return None
     
     async def disconnect(self):
@@ -334,7 +308,7 @@ class DerivAPI:
                 await self.ws.close()
                 self.connected = False
                 self.authorized = False
-                logger.info("🔌 Desconectado da Deriv API")
+                logger.info("🔌 Desconectado")
         except Exception as e:
             logger.error(f"❌ Erro ao desconectar: {e}")
     
