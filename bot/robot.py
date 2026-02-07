@@ -21,12 +21,7 @@ class TradingRobot:
     """
     
     def __init__(self, user_config):
-        """
-        Inicializa o robô com configurações do usuário.
-        
-        Args:
-            user_config: dict com configurações do usuário
-        """
+        """Inicializa o robô com configurações do usuário."""
         self.config = user_config
         self.user_id = user_config.get('user_id')
         
@@ -67,18 +62,12 @@ class TradingRobot:
         # Logs em memória (últimos 100)
         self.logs = deque(maxlen=100)
         
-        # Callback para salvar operações (injetado pelo app.py)
+        # Callbacks
         self.save_operation_callback = None
         self.save_log_callback = None
     
     def log(self, tipo, mensagem):
-        """
-        Registra log do robô.
-        
-        Args:
-            tipo: INFO, SINAL, ENTRADA, RESULTADO, ERRO
-            mensagem: Texto do log
-        """
+        """Registra log do robô."""
         timestamp = datetime.now()
         log_entry = {
             'tipo': tipo,
@@ -89,11 +78,9 @@ class TradingRobot:
         
         self.logs.append(log_entry)
         
-        # Log no console também
         log_func = logger.error if tipo == 'ERRO' else logger.info
         log_func(f"[{tipo}] {mensagem}")
         
-        # Callback para salvar no banco
         if self.save_log_callback:
             try:
                 self.save_log_callback(self.user_id, tipo, mensagem)
@@ -102,106 +89,93 @@ class TradingRobot:
     
     async def start(self):
         """Inicia o robô de trading."""
-        self.log('INFO', '🚀 Iniciando DragonBot v2.0...')
+        self.log('INFO', 'Iniciando DragonBot v2.0...')
         
         try:
-            # Conecta à API
             connected = await self.api.connect()
             if not connected:
-                self.log('ERRO', '❌ Falha ao conectar na Deriv API')
+                self.log('ERRO', 'Falha ao conectar na Deriv API')
                 return False
             
-            # Verifica autorização
             if not self.api.is_authorized():
-                self.log('ERRO', '❌ Falha na autorização - verifique seu token')
+                self.log('ERRO', 'Falha na autorização - verifique seu token')
                 return False
             
-            # Busca saldo inicial
             balance_info = await self.api.get_balance()
             if balance_info:
                 self.saldo_inicial = balance_info['balance']
                 self.saldo_atual = self.saldo_inicial
-                self.log('INFO', f'💰 Saldo inicial: ${self.saldo_inicial:.2f}')
+                self.log('INFO', f'Saldo inicial: ${self.saldo_inicial:.2f}')
             
-            # Inicia loop principal
             self.running = True
-            self.log('INFO', f'✅ Robô iniciado! Ativo: {self.ativo} | Entrada: ${self.valor_entrada}')
-            self.log('INFO', f'📊 Stop Loss: ${self.stop_loss} | Take Profit: ${self.take_profit}')
-            self.log('INFO', f'🎯 Estratégia: Ticks (DIGITOVER/DIGITUNDER)')
+            self.log('INFO', f'Robô iniciado! Ativo: {self.ativo} | Entrada: ${self.valor_entrada}')
+            self.log('INFO', f'Stop Loss: ${self.stop_loss} | Take Profit: ${self.take_profit}')
+            self.log('INFO', f'Estratégia: Ticks (DIGITOVER/DIGITUNDER)')
             
             await self.run_loop()
             return True
             
         except Exception as e:
-            self.log('ERRO', f'❌ Erro ao iniciar: {str(e)}')
+            self.log('ERRO', f'Erro ao iniciar: {str(e)}')
             return False
     
     async def run_loop(self):
         """Loop principal de trading."""
-        self.log('INFO', '🔄 Iniciando loop de análise...')
+        self.log('INFO', 'Iniciando loop de análise...')
         
         while self.running:
             try:
-                # Verifica se atingiu limites
                 if not self._check_limits():
                     break
                 
-                # Pausa se necessário
                 if self.paused:
                     await asyncio.sleep(5)
                     continue
                 
-                # Busca ticks recentes
                 ticks = await self.api.get_ticks(symbol=self.ativo, count=30)
                 
                 if not ticks:
-                    self.log('ERRO', '❌ Falha ao buscar ticks')
+                    self.log('ERRO', 'Falha ao buscar ticks')
                     await asyncio.sleep(10)
                     continue
                 
-                # Analisa estratégia
                 signal = self.strategy.analyze(ticks)
                 
                 if signal:
-                    self.log('SINAL', f"🎯 {signal['signal']} | Barrier: {signal['barrier']} | "
+                    self.log('SINAL', f"{signal['signal']} | Barrier: {signal['barrier']} | "
                                       f"Confiança: {signal['confidence']:.1%}")
-                    self.log('SINAL', f"📝 Razão: {signal['reason']}")
+                    self.log('SINAL', f"Razão: {signal['reason']}")
                     
-                    # Executa trade
                     await self.execute_trade(signal)
                 else:
-                    self.log('INFO', '⏳ Aguardando oportunidade...')
+                    self.log('INFO', 'Aguardando oportunidade...')
                 
-                # Intervalo entre análises (10 segundos para stress test)
                 await asyncio.sleep(10)
                 
             except asyncio.CancelledError:
-                self.log('INFO', '⏹️ Loop cancelado')
+                self.log('INFO', 'Loop cancelado')
                 break
             except Exception as e:
-                self.log('ERRO', f'❌ Erro no loop: {str(e)}')
+                self.log('ERRO', f'Erro no loop: {str(e)}')
                 await asyncio.sleep(10)
         
-        self.log('INFO', '🛑 Loop de trading finalizado')
+        self.log('INFO', 'Loop de trading finalizado')
         await self.api.disconnect()
     
     def _check_limits(self):
         """Verifica se atingiu limites de operação."""
-        # Verifica máximo de operações
         if self.operacoes_hoje >= self.max_operacoes:
-            self.log('INFO', f'🛑 Máximo de operações atingido: {self.max_operacoes}')
+            self.log('INFO', f'Máximo de operações atingido: {self.max_operacoes}')
             self.running = False
             return False
         
-        # Verifica stop loss
         if self.lucro_total <= -self.stop_loss:
-            self.log('INFO', f'🛑 Stop Loss atingido: ${self.lucro_total:.2f}')
+            self.log('INFO', f'Stop Loss atingido: ${self.lucro_total:.2f}')
             self.running = False
             return False
         
-        # Verifica take profit
         if self.lucro_total >= self.take_profit:
-            self.log('INFO', f'🎉 Take Profit atingido: ${self.lucro_total:.2f}')
+            self.log('INFO', f'Take Profit atingido: ${self.lucro_total:.2f}')
             self.running = False
             return False
         
@@ -214,59 +188,48 @@ class TradingRobot:
         
         elif self.tipo_gestao == 'martingale':
             if self.sequencia_loss > 0:
-                # Dobra após cada loss
                 multiplier = self.nivel_martingale ** self.sequencia_loss
                 stake = self.valor_entrada * multiplier
-                # Limita a 10x o valor inicial
                 return min(stake, self.valor_entrada * 10)
             return self.valor_entrada
         
         elif self.tipo_gestao == 'soros':
             if self.sequencia_loss == 0 and self.lucro_total > 0:
-                # Aumenta após win
                 return self.valor_entrada + (self.lucro_total * 0.5)
             return self.valor_entrada
         
         return self.valor_entrada
     
     async def execute_trade(self, signal):
-        """
-        Executa uma operação de trading.
-        
-        Args:
-            signal: Dict com dados do sinal
-        """
+        """Executa uma operação de trading."""
         try:
-            # Calcula valor da entrada
             stake = self._calculate_stake()
             self.valor_atual = stake
             
-            contract_type = signal['signal']  # DIGITOVER ou DIGITUNDER
+            contract_type = signal['signal']
             barrier = signal.get('barrier')
             
-            self.log('ENTRADA', f'📈 Executando: {contract_type} | Barrier: {barrier} | '
+            self.log('ENTRADA', f'Executando: {contract_type} | Barrier: {barrier} | '
                                f'Valor: ${stake:.2f}')
             
-            # Compra o contrato
             contract = await self.api.buy_contract(
                 contract_type=contract_type,
                 amount=stake,
-                duration=5,  # 5 ticks
+                duration=5,
                 symbol=self.ativo,
-                duration_unit='t',  # ticks
+                duration_unit='t',
                 barrier=barrier
             )
             
             if not contract:
-                self.log('ERRO', '❌ Falha ao comprar contrato')
+                self.log('ERRO', 'Falha ao comprar contrato')
                 return
             
             contract_id = contract['contract_id']
             self.operacoes_hoje += 1
             
-            self.log('ENTRADA', f'✅ Contrato aberto: #{contract_id}')
+            self.log('ENTRADA', f'Contrato aberto: #{contract_id}')
             
-            # Aguarda resultado (máximo 30 segundos para 5 ticks)
             result = await self.api.check_contract_result(contract_id, timeout=30)
             
             if result:
@@ -276,21 +239,19 @@ class TradingRobot:
                 if status == 'WIN':
                     self.wins += 1
                     self.sequencia_loss = 0
-                    self.log('RESULTADO', f'🎉 WIN! Lucro: +${profit:.2f}')
+                    self.log('RESULTADO', f'WIN! Lucro: +${profit:.2f}')
                 else:
                     self.losses += 1
                     self.sequencia_loss += 1
                     self.maior_sequencia_loss = max(self.maior_sequencia_loss, self.sequencia_loss)
-                    self.log('RESULTADO', f'😔 LOSS! Prejuízo: ${profit:.2f}')
+                    self.log('RESULTADO', f'LOSS! Prejuízo: ${profit:.2f}')
                 
                 self.lucro_total += profit
                 
-                # Atualiza saldo
                 balance_info = await self.api.get_balance()
                 if balance_info:
                     self.saldo_atual = balance_info['balance']
                 
-                # Salva operação no banco
                 if self.save_operation_callback:
                     try:
                         self.save_operation_callback(
@@ -306,30 +267,29 @@ class TradingRobot:
                     except Exception as e:
                         logger.error(f"Erro ao salvar operação: {e}")
                 
-                # Log de estatísticas
                 win_rate = (self.wins / (self.wins + self.losses)) * 100 if (self.wins + self.losses) > 0 else 0
-                self.log('INFO', f'📊 Stats: {self.wins}W/{self.losses}L ({win_rate:.1f}%) | '
+                self.log('INFO', f'Stats: {self.wins}W/{self.losses}L ({win_rate:.1f}%) | '
                                 f'Lucro: ${self.lucro_total:.2f}')
             else:
-                self.log('ERRO', '❌ Não foi possível obter resultado do contrato')
+                self.log('ERRO', 'Não foi possível obter resultado do contrato')
                 
         except Exception as e:
-            self.log('ERRO', f'❌ Erro ao executar trade: {str(e)}')
+            self.log('ERRO', f'Erro ao executar trade: {str(e)}')
     
     def stop(self):
         """Para o robô."""
-        self.log('INFO', '⏹️ Parando robô...')
+        self.log('INFO', 'Parando robô...')
         self.running = False
     
     def pause(self):
         """Pausa o robô."""
         self.paused = True
-        self.log('INFO', '⏸️ Robô pausado')
+        self.log('INFO', 'Robô pausado')
     
     def resume(self):
         """Retoma o robô."""
         self.paused = False
-        self.log('INFO', '▶️ Robô retomado')
+        self.log('INFO', 'Robô retomado')
     
     def get_status(self):
         """Retorna status atual do robô."""
@@ -340,34 +300,22 @@ class TradingRobot:
             'paused': self.paused,
             'user_id': self.user_id,
             'ativo': self.ativo,
-            
-            # Saldo
             'saldo_inicial': self.saldo_inicial,
             'saldo_atual': self.saldo_atual,
-            
-            # Operações
             'operacoes_hoje': self.operacoes_hoje,
             'max_operacoes': self.max_operacoes,
             'wins': self.wins,
             'losses': self.losses,
             'win_rate': win_rate,
-            
-            # Lucro
             'lucro_total': self.lucro_total,
             'stop_loss': self.stop_loss,
             'take_profit': self.take_profit,
-            
-            # Gestão
             'tipo_gestao': self.tipo_gestao,
             'valor_entrada': self.valor_entrada,
             'valor_atual': self.valor_atual,
             'sequencia_loss': self.sequencia_loss,
             'maior_sequencia_loss': self.maior_sequencia_loss,
-            
-            # Logs (últimos 20)
             'logs': list(self.logs)[-20:],
-            
-            # Estratégia
             'estrategia': 'TICKS_DIGIT',
             'strategy_stats': self.strategy.get_stats()
         }
