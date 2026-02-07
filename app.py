@@ -372,6 +372,67 @@ def webhook_kirvano():
     return jsonify({"status": "ignored"}), 200
 
 
+# ==================== ROTA TEMPORÁRIA PARA TESTE ====================
+
+@app.route('/criar-teste-dragon-2024')
+def criar_usuario_teste():
+    """Cria usuário de teste - DELETAR DEPOIS DO LANÇAMENTO"""
+    
+    # Verifica se já existe
+    user_existente = User.query.filter_by(email='teste@dragonbot.com').first()
+    if user_existente:
+        return """
+        <html>
+        <head><title>Usuário Existe</title></head>
+        <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
+            <h1 style="color: #00d9ff;">✅ Usuário já existe!</h1>
+            <p>Email: teste@dragonbot.com</p>
+            <p>Senha: dragon123</p>
+            <a href="/login" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN</a>
+        </body>
+        </html>
+        """
+    
+    # Cria novo usuário
+    from datetime import datetime, timedelta
+    
+    novo_user = User(
+        email='teste@dragonbot.com',
+        password=generate_password_hash('dragon123'),
+        status_assinatura='ativo',
+        plano='mensal',
+        validade=datetime.utcnow() + timedelta(days=365),
+        deriv_app_id='1089',
+        robot_ativo=False,
+        valor_entrada=1.0,
+        stop_loss=50.0,
+        take_profit=100.0,
+        max_operacoes_dia=50,
+        tipo_gestao='fixo',
+        nivel_martingale=2.0
+    )
+    
+    db.session.add(novo_user)
+    db.session.commit()
+    
+    return """
+    <html>
+    <head><title>Usuário Criado</title></head>
+    <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
+        <h1 style="color: #00ff88;">🎉 Usuário criado com sucesso!</h1>
+        <div style="background: #161a23; padding: 30px; border-radius: 15px; display: inline-block; margin-top: 30px;">
+            <p style="margin: 10px 0;"><strong>Email:</strong> teste@dragonbot.com</p>
+            <p style="margin: 10px 0;"><strong>Senha:</strong> dragon123</p>
+            <p style="margin: 10px 0;"><strong>Plano:</strong> Mensal (Ativo)</p>
+            <p style="margin: 10px 0;"><strong>Válido até:</strong> 365 dias</p>
+        </div>
+        <br><br>
+        <a href="/login" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN AGORA</a>
+    </body>
+    </html>
+    """
+
+
 # ==================== ERRO 404 ====================
 
 @app.errorhandler(404)
