@@ -1,9 +1,10 @@
 """
 DragonBot SaaS - Servidor Flask Principal
-Versão: 2.0 - Integração com estratégia de Ticks
+Versão: 2.0 - Correção para Railway
 """
 
 import os
+import sys
 import asyncio
 import threading
 import logging
@@ -11,15 +12,14 @@ from datetime import datetime, timedelta
 from functools import wraps
 import uuid
 
+# Configuração de path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Flask imports
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, Operacao, LogRobo, init_db
-from bot import TradingRobot, DerivAPI
-
-# ============================================================
-# CONFIGURAÇÃO DE LOGGING
-# ============================================================
+# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
@@ -27,113 +27,131 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ============================================================
-# CONFIGURAÇÃO DO FLASK
-# ============================================================
+# Flask App
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dragon_secret_key_pro_99')
 
-# Configuração do banco de dados
+# Database
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
-# Fix para Heroku PostgreSQL
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicializa o banco
+# Import models after Flask config
+from models import db, User, Operacao, LogRobo, init_db
 init_db(app)
 
+# Import bot
+BOT_AVAILABLE = False
+TradingRobot = None
+DerivAPI = None
+
+try:
+    from bot.robot import TradingRobot
+    from bot.deriv_api import DerivAPI
+    BOT_AVAILABLE = True
+    logger.info("Módulo bot carregado com sucesso")
+except ImportError as e:
+    logger.warning(f"Bot não disponível: {e}")
+
+
 # ============================================================
-# GERENCIADOR DE ROBÔS (em memória)
+# ROBOT MANAGER
 # ============================================================
 class RobotManager:
-    """Gerencia instâncias de robôs rodando em background."""
-    
     def __init__(self):
-        self.robots = {}  # user_id -> {'robot': TradingRobot, 'thread': Thread, 'loop': asyncio.loop}
+        self.robots = {}
         self.lock = threading.Lock()
+        self.enabled = BOT_AVAILABLE
     
     def start_robot(self, user_id, config):
-        """Inicia um robô para o usuário."""
+        if not self.enabled:
+            return False
+            
         with self.lock:
-            # Para robô existente se houver
             if user_id in self.robots:
                 self.stop_robot(user_id)
             
-            # Cria novo robô
-            robot = TradingRobot(config)
-            
-            # Injeta callbacks para salvar no banco
-            robot.save_operation_callback = self._create_operation_callback()
-            robot.save_log_callback = self._create_log_callback()
-            
-            # Cria thread com event loop dedicado
-            loop = asyncio.new_event_loop()
-            
-            def run_robot():
-                asyncio.set_event_loop(loop)
-                try:
-                    loop.run_until_complete(robot.start())
-                except Exception as e:
-                    logger.error(f"Erro no robô do usuário {user_id}: {e}")
-                finally:
-                    loop.close()
-            
-            thread = threading.Thread(target=run_robot, daemon=True)
-            thread.start()
-            
-            self.robots[user_id] = {
-                'robot': robot,
-                'thread': thread,
-                'loop': loop,
-                'started_at': datetime.now()
-            }
-            
-            logger.info(f"✅ Robô iniciado para usuário {user_id}")
-            return True
+            try:
+                robot = TradingRobot(config)
+                robot.save_operation_callback = self._create_operation_callback()
+                robot.save_log_callback = self._create_log_callback()
+                
+                loop = asyncio.new_event_loop()
+                
+                def run_robot():
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(robot.start())
+                    except Exception as e:
+                        logger.error(f"Erro no robô do usuário {user_id}: {e}")
+                    finally:
+                        try:
+                            loop.close()
+                        except:
+                            pass
+                
+                thread = threading.Thread(target=run_robot, daemon=True)
+                thread.start()
+                
+                self.robots[user_id] = {
+                    'robot': robot,
+                    'thread': thread,
+                    'loop': loop,
+                    'started_at': datetime.now()
+                }
+                
+                logger.info(f"Robô iniciado para usuário {user_id}")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Erro ao criar robô: {e}")
+                return False
     
     def stop_robot(self, user_id):
-        """Para o robô do usuário."""
+        if not self.enabled:
+            return False
+            
         with self.lock:
             if user_id not in self.robots:
                 return False
             
-            robot_data = self.robots[user_id]
-            robot = robot_data['robot']
-            
-            # Para o robô
-            robot.stop()
-            
-            # Aguarda thread terminar (máximo 5 segundos)
-            thread = robot_data['thread']
-            thread.join(timeout=5)
-            
-            # Remove do dicionário
-            del self.robots[user_id]
-            
-            logger.info(f"⏹️ Robô parado para usuário {user_id}")
-            return True
+            try:
+                robot_data = self.robots[user_id]
+                robot_data['robot'].stop()
+                robot_data['thread'].join(timeout=5)
+                del self.robots[user_id]
+                logger.info(f"Robô parado para usuário {user_id}")
+                return True
+            except Exception as e:
+                logger.error(f"Erro ao parar robô: {e}")
+                return False
     
     def get_status(self, user_id):
-        """Retorna status do robô do usuário."""
+        if not self.enabled:
+            return None
         with self.lock:
             if user_id not in self.robots:
                 return None
-            
-            robot = self.robots[user_id]['robot']
-            return robot.get_status()
+            try:
+                return self.robots[user_id]['robot'].get_status()
+            except:
+                return None
     
     def is_running(self, user_id):
-        """Verifica se o robô do usuário está rodando."""
+        if not self.enabled:
+            return False
         with self.lock:
             if user_id not in self.robots:
                 return False
-            return self.robots[user_id]['robot'].running
+            try:
+                return self.robots[user_id]['robot'].running
+            except:
+                return False
     
     def _create_operation_callback(self):
-        """Cria callback para salvar operações no banco."""
         def save_operation(user_id, tipo, ativo, valor, resultado, lucro, 
                           barrier=None, confianca=None, rsi=None, bollinger=None, value_chart=None):
             try:
@@ -155,14 +173,11 @@ class RobotManager:
                     )
                     db.session.add(operacao)
                     db.session.commit()
-                    logger.debug(f"Operação salva: {tipo} {resultado}")
             except Exception as e:
                 logger.error(f"Erro ao salvar operação: {e}")
-        
         return save_operation
     
     def _create_log_callback(self):
-        """Cria callback para salvar logs no banco."""
         def save_log(user_id, tipo, mensagem):
             try:
                 with app.app_context():
@@ -176,27 +191,35 @@ class RobotManager:
                     db.session.commit()
             except Exception as e:
                 logger.error(f"Erro ao salvar log: {e}")
-        
         return save_log
 
 
-# Instância global do gerenciador
 robot_manager = RobotManager()
 
+
 # ============================================================
-# FUNÇÕES AUXILIARES DERIV (para testar conexão)
+# HELPERS
 # ============================================================
 def run_async(coro):
-    """Executa coroutine em novo event loop."""
-    loop = asyncio.new_event_loop()
+    if not BOT_AVAILABLE:
+        return None
     try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         return loop.run_until_complete(coro)
+    except Exception as e:
+        logger.error(f"Erro run_async: {e}")
+        return None
     finally:
-        loop.close()
+        try:
+            loop.close()
+        except:
+            pass
 
 
 async def deriv_authorize(token, app_id='1089'):
-    """Testa autorização com a Deriv."""
+    if not BOT_AVAILABLE or not DerivAPI:
+        return None
     api = DerivAPI(app_id=app_id, token=token)
     try:
         connected = await api.connect()
@@ -211,7 +234,8 @@ async def deriv_authorize(token, app_id='1089'):
 
 
 async def deriv_get_balance(token, app_id='1089'):
-    """Busca saldo da conta Deriv."""
+    if not BOT_AVAILABLE or not DerivAPI:
+        return None
     api = DerivAPI(app_id=app_id, token=token)
     try:
         connected = await api.connect()
@@ -224,18 +248,17 @@ async def deriv_get_balance(token, app_id='1089'):
     finally:
         await api.disconnect()
 
+
 # ============================================================
-# DECORADORES DE AUTENTICAÇÃO
+# DECORATORS
 # ============================================================
 def requer_login(f):
-    """Decorator que exige usuário logado."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             flash('Faça login para continuar.', 'warning')
             return redirect(url_for('login'))
         
-        # Valida session token
         user = User.query.get(session['user_id'])
         if not user or user.session_token != session.get('session_token'):
             session.clear()
@@ -247,7 +270,6 @@ def requer_login(f):
 
 
 def requer_assinatura(f):
-    """Decorator que exige assinatura ativa."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = User.query.get(session.get('user_id'))
@@ -261,12 +283,12 @@ def requer_assinatura(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
 # ============================================================
-# ROTAS PÚBLICAS
+# PUBLIC ROUTES
 # ============================================================
 @app.route('/')
 def landing():
-    """Landing page pública."""
     if 'user_id' in session:
         return redirect(url_for('painel'))
     return render_template('landing.html')
@@ -274,7 +296,6 @@ def landing():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Tela e processamento de login."""
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
@@ -282,12 +303,10 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password):
-            # Gera novo token de sessão
             session_token = user.generate_session_token()
             user.ultimo_acesso = datetime.utcnow()
             db.session.commit()
             
-            # Salva na sessão
             session['user_id'] = user.id
             session['session_token'] = session_token
             session['email'] = user.email
@@ -302,14 +321,10 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Logout do usuário."""
     user_id = session.get('user_id')
     
-    # Para o robô se estiver rodando
     if user_id and robot_manager.is_running(user_id):
         robot_manager.stop_robot(user_id)
-        
-        # Atualiza banco
         user = User.query.get(user_id)
         if user:
             user.robot_ativo = False
@@ -323,22 +338,20 @@ def logout():
 @app.route('/assinatura-expirada')
 @requer_login
 def assinatura_expirada():
-    """Página de assinatura expirada."""
     return render_template('erro.html', 
                           titulo='Assinatura Expirada',
                           mensagem='Sua assinatura expirou. Renove para continuar usando o DragonBot.')
 
+
 # ============================================================
-# ROTAS DA ÁREA DO CLIENTE
+# CLIENT ROUTES
 # ============================================================
 @app.route('/painel')
 @requer_login
 @requer_assinatura
 def painel():
-    """Dashboard principal."""
     user = User.query.get(session['user_id'])
     
-    # Busca estatísticas
     hoje = datetime.utcnow().date()
     operacoes_hoje = Operacao.query.filter(
         Operacao.user_id == user.id,
@@ -349,8 +362,7 @@ def painel():
     losses = sum(1 for op in operacoes_hoje if op.resultado == 'LOSS')
     lucro_hoje = sum(op.lucro for op in operacoes_hoje if op.lucro)
     
-    # Status do robô
-    robot_status = robot_manager.get_status(user.id)
+    robot_status = robot_manager.get_status(user.id) if BOT_AVAILABLE else None
     
     return render_template('painel.html', 
                           user=user,
@@ -359,30 +371,26 @@ def painel():
                           losses=losses,
                           lucro_hoje=lucro_hoje,
                           robot_status=robot_status,
-                          robot_running=robot_manager.is_running(user.id))
+                          robot_running=robot_manager.is_running(user.id) if BOT_AVAILABLE else False,
+                          bot_available=BOT_AVAILABLE)
 
 
 @app.route('/conta')
 @requer_login
 @requer_assinatura
 def conta():
-    """Página de configurações da conta."""
     user = User.query.get(session['user_id'])
-    return render_template('conta.html', user=user)
+    return render_template('conta.html', user=user, bot_available=BOT_AVAILABLE)
 
 
 @app.route('/operacoes')
 @requer_login
 @requer_assinatura
 def operacoes():
-    """Histórico de operações."""
     user = User.query.get(session['user_id'])
-    
-    # Busca últimas 100 operações
     ops = Operacao.query.filter_by(user_id=user.id)\
                         .order_by(Operacao.data_entrada.desc())\
                         .limit(100).all()
-    
     return render_template('operacoes.html', user=user, operacoes=ops)
 
 
@@ -390,22 +398,20 @@ def operacoes():
 @requer_login
 @requer_assinatura
 def educacional():
-    """Área educacional."""
     user = User.query.get(session['user_id'])
     return render_template('educacional.html', user=user)
 
+
 # ============================================================
-# APIs DE CONFIGURAÇÃO
+# CONFIG APIs
 # ============================================================
 @app.route('/api/salvar-config', methods=['POST'])
 @requer_login
 def api_salvar_config():
-    """Salva configurações do usuário."""
     try:
         user = User.query.get(session['user_id'])
         data = request.json
         
-        # Atualiza campos
         if 'valor_entrada' in data:
             user.valor_entrada = float(data['valor_entrada'])
         if 'stop_loss' in data:
@@ -426,7 +432,6 @@ def api_salvar_config():
             user.deriv_app_id = data['deriv_app_id']
         
         db.session.commit()
-        
         return jsonify({'success': True, 'message': 'Configurações salvas!'})
     
     except Exception as e:
@@ -437,7 +442,6 @@ def api_salvar_config():
 @app.route('/api/alterar-senha', methods=['POST'])
 @requer_login
 def api_alterar_senha():
-    """Altera senha do usuário."""
     try:
         user = User.query.get(session['user_id'])
         data = request.json
@@ -453,20 +457,22 @@ def api_alterar_senha():
         
         user.set_password(nova_senha)
         db.session.commit()
-        
         return jsonify({'success': True, 'message': 'Senha alterada com sucesso!'})
     
     except Exception as e:
         logger.error(f"Erro ao alterar senha: {e}")
         return jsonify({'success': False, 'message': str(e)}), 400
 
+
 # ============================================================
-# APIs DERIV
+# DERIV APIs
 # ============================================================
 @app.route('/api/deriv/testar-conexao', methods=['POST'])
 @requer_login
 def api_testar_conexao():
-    """Testa conexão com a Deriv."""
+    if not BOT_AVAILABLE:
+        return jsonify({'success': False, 'message': 'Bot não está disponível'}), 503
+        
     try:
         user = User.query.get(session['user_id'])
         data = request.json
@@ -477,11 +483,9 @@ def api_testar_conexao():
         if not token:
             return jsonify({'success': False, 'message': 'Token não fornecido'}), 400
         
-        # Testa conexão
         account_info = run_async(deriv_authorize(token, app_id))
         
         if account_info:
-            # Salva token se for novo
             if data.get('token'):
                 user.deriv_token = token
                 user.deriv_app_id = app_id
@@ -508,7 +512,9 @@ def api_testar_conexao():
 @app.route('/api/deriv/saldo')
 @requer_login
 def api_deriv_saldo():
-    """Retorna saldo da conta Deriv."""
+    if not BOT_AVAILABLE:
+        return jsonify({'success': False, 'message': 'Bot não está disponível'}), 503
+        
     try:
         user = User.query.get(session['user_id'])
         
@@ -530,39 +536,30 @@ def api_deriv_saldo():
         logger.error(f"Erro ao buscar saldo: {e}")
         return jsonify({'success': False, 'message': str(e)}), 400
 
+
 # ============================================================
-# APIs DO ROBÔ
+# ROBOT APIs
 # ============================================================
 @app.route('/api/robot/start', methods=['POST'])
 @requer_login
 @requer_assinatura
 def api_robot_start():
-    """Inicia o robô de trading."""
+    if not BOT_AVAILABLE:
+        return jsonify({'success': False, 'message': 'Bot não está disponível no momento'}), 503
+        
     try:
         user = User.query.get(session['user_id'])
         
-        # Valida token Deriv
         if not user.deriv_token:
-            return jsonify({
-                'success': False, 
-                'message': 'Configure seu token da Deriv antes de iniciar o robô'
-            }), 400
+            return jsonify({'success': False, 'message': 'Configure seu token da Deriv antes de iniciar o robô'}), 400
         
-        # Verifica se já está rodando
         if robot_manager.is_running(user.id):
-            return jsonify({
-                'success': False, 
-                'message': 'Robô já está em execução'
-            }), 400
+            return jsonify({'success': False, 'message': 'Robô já está em execução'}), 400
         
-        # Pega configurações do usuário
         config = user.get_config()
-        
-        # Inicia o robô
         success = robot_manager.start_robot(user.id, config)
         
         if success:
-            # Atualiza status no banco
             user.robot_ativo = True
             db.session.commit()
             
@@ -577,10 +574,7 @@ def api_robot_start():
                 }
             })
         else:
-            return jsonify({
-                'success': False, 
-                'message': 'Falha ao iniciar o robô'
-            }), 500
+            return jsonify({'success': False, 'message': 'Falha ao iniciar o robô'}), 500
     
     except Exception as e:
         logger.error(f"Erro ao iniciar robô: {e}")
@@ -590,27 +584,17 @@ def api_robot_start():
 @app.route('/api/robot/stop', methods=['POST'])
 @requer_login
 def api_robot_stop():
-    """Para o robô de trading."""
     try:
         user = User.query.get(session['user_id'])
+        success = robot_manager.stop_robot(user.id) if BOT_AVAILABLE else False
         
-        # Para o robô
-        success = robot_manager.stop_robot(user.id)
-        
-        # Atualiza status no banco
         user.robot_ativo = False
         db.session.commit()
         
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Robô parado com sucesso!'
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'message': 'Robô não estava em execução'
-            })
+        return jsonify({
+            'success': True,
+            'message': 'Robô parado com sucesso!' if success else 'Robô não estava em execução'
+        })
     
     except Exception as e:
         logger.error(f"Erro ao parar robô: {e}")
@@ -620,13 +604,11 @@ def api_robot_stop():
 @app.route('/api/robot/status')
 @requer_login
 def api_robot_status():
-    """Retorna status atual do robô."""
     try:
         user = User.query.get(session['user_id'])
         
-        # Status do gerenciador
-        status = robot_manager.get_status(user.id)
-        is_running = robot_manager.is_running(user.id)
+        status = robot_manager.get_status(user.id) if BOT_AVAILABLE else None
+        is_running = robot_manager.is_running(user.id) if BOT_AVAILABLE else False
         
         if status:
             return jsonify({
@@ -635,7 +617,6 @@ def api_robot_status():
                 'status': status
             })
         else:
-            # Busca estatísticas do banco mesmo se robô não estiver rodando
             hoje = datetime.utcnow().date()
             operacoes_hoje = Operacao.query.filter(
                 Operacao.user_id == user.id,
@@ -667,19 +648,17 @@ def api_robot_status():
 @app.route('/api/robot/logs')
 @requer_login
 def api_robot_logs():
-    """Retorna logs do robô."""
     try:
         user = User.query.get(session['user_id'])
         
-        # Logs em tempo real (se rodando)
-        status = robot_manager.get_status(user.id)
-        if status and status.get('logs'):
-            return jsonify({
-                'success': True,
-                'logs': status['logs']
-            })
+        if BOT_AVAILABLE:
+            status = robot_manager.get_status(user.id)
+            if status and status.get('logs'):
+                return jsonify({
+                    'success': True,
+                    'logs': status['logs']
+                })
         
-        # Logs do banco (últimos 50)
         logs = LogRobo.query.filter_by(user_id=user.id)\
                            .order_by(LogRobo.data.desc())\
                            .limit(50).all()
@@ -697,12 +676,12 @@ def api_robot_logs():
         logger.error(f"Erro ao buscar logs: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 # ============================================================
 # WEBHOOK KIRVANO
 # ============================================================
 @app.route('/webhook-kirvano', methods=['POST'])
 def webhook_kirvano():
-    """Processa webhooks do Kirvano (pagamentos)."""
     try:
         data = request.json
         logger.info(f"Webhook Kirvano recebido: {data}")
@@ -717,34 +696,28 @@ def webhook_kirvano():
         user = User.query.filter_by(email=email).first()
         
         if evento in ['purchase_approved', 'subscription_active']:
-            # Ativa/renova assinatura
             if not user:
-                # Cria novo usuário
                 user = User(email=email)
-                user.set_password(str(uuid.uuid4())[:8])  # Senha temporária
+                user.set_password(str(uuid.uuid4())[:8])
                 db.session.add(user)
             
             user.status_assinatura = 'ativo'
             user.plano = 'trimestral' if 'trimestral' in plano else 'mensal'
-            
-            # Define validade
             dias = 90 if user.plano == 'trimestral' else 30
             user.validade = datetime.utcnow() + timedelta(days=dias)
             
             db.session.commit()
-            logger.info(f"✅ Assinatura ativada para {email}")
+            logger.info(f"Assinatura ativada para {email}")
             
         elif evento in ['subscription_canceled', 'subscription_expired', 'refund_approved']:
-            # Cancela assinatura
             if user:
                 user.status_assinatura = 'inativo'
                 db.session.commit()
                 
-                # Para o robô se estiver rodando
-                if robot_manager.is_running(user.id):
+                if BOT_AVAILABLE and robot_manager.is_running(user.id):
                     robot_manager.stop_robot(user.id)
                 
-                logger.info(f"❌ Assinatura cancelada para {email}")
+                logger.info(f"Assinatura cancelada para {email}")
         
         return jsonify({'success': True})
     
@@ -752,12 +725,12 @@ def webhook_kirvano():
         logger.error(f"Erro no webhook: {e}")
         return jsonify({'error': str(e)}), 500
 
+
 # ============================================================
-# ROTA DE TESTE (criar usuário de teste)
+# UTILS
 # ============================================================
 @app.route('/criar-teste-dragon-2024')
 def criar_usuario_teste():
-    """Cria usuário de teste para desenvolvimento."""
     try:
         email = 'teste@dragonbot.com'
         
@@ -780,16 +753,24 @@ def criar_usuario_teste():
             'credentials': {
                 'email': email,
                 'password': 'dragon123'
-            }
+            },
+            'bot_available': BOT_AVAILABLE
         })
     
     except Exception as e:
         logger.error(f"Erro ao criar usuário teste: {e}")
         return jsonify({'error': str(e)}), 500
 
-# ============================================================
-# TRATAMENTO DE ERROS
-# ============================================================
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'bot_available': BOT_AVAILABLE,
+        'timestamp': datetime.now().isoformat()
+    })
+
+
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('erro.html', 
@@ -803,13 +784,17 @@ def internal_error(e):
                           titulo='Erro interno',
                           mensagem='Ocorreu um erro no servidor. Tente novamente.'), 500
 
+
 # ============================================================
-# INICIALIZAÇÃO
+# MAIN
 # ============================================================
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
-        logger.info("✅ Banco de dados inicializado")
+        try:
+            db.create_all()
+            logger.info("Banco de dados inicializado")
+        except Exception as e:
+            logger.error(f"Erro ao criar banco: {e}")
     
-    # Modo desenvolvimento
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
