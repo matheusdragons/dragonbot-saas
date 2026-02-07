@@ -29,8 +29,11 @@ class User(db.Model):
     max_operacoes_dia = db.Column(db.Integer, default=50)
     
     # Gestão de Banca
-    tipo_gestao = db.Column(db.String(20), default='fixo')  # fixo, martingale, soros
+    tipo_gestao = db.Column(db.String(20), default='fixo')
     nivel_martingale = db.Column(db.Float, default=2.0)
+    
+    # NOVO: Tipo de Estratégia
+    estrategia_tipo = db.Column(db.String(20), default='technical')
     
     # Controle
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
@@ -46,18 +49,21 @@ class Operacao(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # Dados da operação
-    tipo = db.Column(db.String(10))  # CALL ou PUT
+    tipo = db.Column(db.String(20))
     ativo = db.Column(db.String(50), default='R_75')
     valor = db.Column(db.Float)
     
+    # NOVO: Para estratégia Over/Under
+    barrier = db.Column(db.String(5))
+    
     # Resultado
-    resultado = db.Column(db.String(10))  # WIN, LOSS, PENDING
+    resultado = db.Column(db.String(10))
     lucro = db.Column(db.Float, default=0)
     
-    # Indicadores no momento da entrada
-    rsi = db.Column(db.Float)
-    bollinger = db.Column(db.String(20))  # UPPER, LOWER
-    value_chart = db.Column(db.Float)
+    # Indicadores no momento da entrada (opcionais)
+    rsi = db.Column(db.Float, nullable=True)
+    bollinger = db.Column(db.String(20), nullable=True)
+    value_chart = db.Column(db.Float, nullable=True)
     
     # Timestamps
     data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
@@ -69,6 +75,6 @@ class LogRobo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    tipo = db.Column(db.String(20))  # INFO, SINAL, ENTRADA, RESULTADO, ERRO
+    tipo = db.Column(db.String(20))
     mensagem = db.Column(db.Text)
     data = db.Column(db.DateTime, default=datetime.utcnow)
