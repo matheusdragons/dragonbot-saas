@@ -56,24 +56,56 @@ class DerivAPI:
         return []
     
     
-    async def buy_contract(self, contract_type, amount, duration=5, symbol="R_75"):
+    async def get_ticks(self, symbol="R_75", count=50):
+        """
+        Busca histórico de ticks (preços instantâneos)
+        NOVO: Para estratégia de probabilidade
+        """
+        request = {
+            "ticks_history": symbol,
+            "adjust_start_time": 1,
+            "count": count,
+            "end": "latest",
+            "style": "ticks"
+        }
+        await self.ws.send(json.dumps(request))
+        response = await self.ws.recv()
+        data = json.loads(response)
+        
+        if 'history' in data:
+            return data['history']['prices']
+        return []
+    
+    
+    async def buy_contract(self, contract_type, amount, duration=5, symbol="R_75", barrier=None):
         """
         Compra contrato
-        contract_type: 'CALL' ou 'PUT'
-        duration: minutos
+        contract_type: 'CALL', 'PUT', 'DIGITOVER', 'DIGITUNDER'
+        duration: minutos ou ticks (dependendo do tipo)
+        barrier: Para DIGITOVER/DIGITUNDER (0-9)
         """
+        params = {
+            "contract_type": contract_type,
+            "currency": "USD",
+            "symbol": symbol,
+            "basis": "stake",
+            "amount": amount
+        }
+        
+        # Se for DIGIT, usa ticks
+        if "DIGIT" in contract_type:
+            params["duration"] = duration
+            params["duration_unit"] = "t"
+            if barrier is not None:
+                params["barrier"] = str(barrier)
+        else:
+            params["duration"] = duration
+            params["duration_unit"] = "m"
+        
         request = {
             "buy": 1,
             "price": amount,
-            "parameters": {
-                "contract_type": contract_type,
-                "currency": "USD",
-                "duration": duration,
-                "duration_unit": "m",
-                "symbol": symbol,
-                "basis": "stake",
-                "amount": amount
-            }
+            "parameters": params
         }
         await self.ws.send(json.dumps(request))
         response = await self.ws.recv()
