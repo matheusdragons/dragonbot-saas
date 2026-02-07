@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Dragon Bot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #00d9ff;
+            --success: #00ff88;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --bg: #0b0e14;
+            --bg-secondary: #161a23;
+            --bg-tertiary: #1e2530;
+        }
+        
+        body {
+            background: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* HEADER */
+        .header {
+            background: var(--bg-secondary);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d333f;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-link {
+            color: #888;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary);
+            background: rgba(0, 217, 255, 0.1);
+        }
+        
+        .nav-link.logout {
+            color: var(--danger);
+        }
+        
+        /* CONTAINER */
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        
+        /* CARDS */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #2d333f;
+        }
+        
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* FORM */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid #2d333f;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        /* BUTTONS */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            width: 100%;
+        }
+        
+        .btn-primary { background: var(--primary); color: black; }
+        .btn-success { background: var(--success); color: black; }
+        .btn-danger { background: var(--danger); color: white; }
+        
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        /* ROBOT SECTION */
+        .robot-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .robot-status {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .robot-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .status-badge.running {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success);
+        }
+        
+        .status-badge.stopped {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--danger);
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.running {
+            background: var(--success);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-dot.stopped { background: var(--danger); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .robot-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .robot-controls .btn {
+            width: auto;
+            padding: 15px 40px;
+        }
+        
+        /* STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--success);
+        }
+        
+        .stat-value.negative { color: var(--danger); }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        /* LOGS */
+        .logs-container {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1f2a;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .log-time { color: #555; }
+        .log-type { font-weight: bold; }
+        .log-type.INFO { color: var(--primary); }
+        .log-type.SINAL { color: var(--warning); }
+        .log-type.ENTRADA { color: var(--success); }
+        .log-type.ERRO { color: var(--danger); }
+        .log-message { color: #aaa; }
+        
+        /* INFO BOX */
+        .info-box {
+            background: rgba(0, 217, 255, 0.05);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #888;
+            margin-top: 15px;
+        }
+        
+        .info-box a {
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header class="header">
+        <a href="/painel" class="logo">
+            <svg width="150" height="38" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d9ff" />
+                        <stop offset="100%" style="stop-color:#00ff88" />
+                    </linearGradient>
+                </defs>
+                <g transform="translate(5, 10)">
+                    <path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" stroke="url(#grad)" stroke-width="2.5" fill="none"/>
+                    <rect x="8" y="12" width="3" height="10" fill="#00ff88"/>
+                    <rect x="14" y="8" width="3" height="12" fill="#00d9ff"/>
+                    <rect x="20" y="5" width="3" height="14" fill="#00ff88"/>
+                </g>
+                <text x="45" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text>
+                <text x="125" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="url(#grad)">BOT</text>
+            </svg>
+        </a>
+        
+        <nav class="nav-menu">
+            <a href="/painel" class="nav-link active">🤖 Robô</a>
+            <a href="/operacoes" class="nav-link">📊 Operações</a>
+            <a href="/educacional" class="nav-link">📚 Tutoriais</a>
+            <a href="/conta" class="nav-link">👤 Conta</a>
+            <a href="/logout" class="nav-link logout">Sair</a>
+        </nav>
+    </header>
+
+    <!-- CONTAINER -->
+    <div class="container">
+        <!-- SIDEBAR - CONFIGURAÇÕES -->
+        <aside>
+            <!-- Token Deriv -->
+            <div class="card">
+                <h3>🔑 Conexão Deriv</h3>
+                <div class="form-group">
+                    <label>Token de API</label>
+                    <input type="password" id="deriv_token" placeholder="Cole seu token aqui" value="{{ user.deriv_token or '' }}">
+                </div>
+                <button class="btn btn-primary" onclick="salvarConfig()">SALVAR TOKEN</button>
+                
+                <div class="info-box">
+                    <strong>Como obter o token:</strong><br>
+                    1. Acesse <a href="https://app.deriv.com/account/api-token" target="_blank">app.deriv.com/account/api-token</a><br>
+                    2. Crie um token com permissões: Read, Trade<br>
+                    3. Copie e cole acima
+                </div>
+            </div>
+            
+            <!-- Configurações do Robô -->
+            <div class="card" style="margin-top: 20px;">
+                <h3>⚙️ Configurações</h3>
+                
+                <div class="form-group">
+                    <label>Valor por Entrada ($)</label>
+                    <input type="number" id="valor_entrada" step="0.01" min="0.35" value="{{ user.valor_entrada or 1.0 }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Stop Loss ($)</label>
+                    <input type="number" id="stop_loss" step="1" min="1" value="{{ user.stop_loss or 50 }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Take Profit ($)</label>
+                    <input type="number" id="take_profit" step="1" min="1" value="{{ user.take_profit or 100 }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Máx. Operações/Dia</label>
+                    <input type="number" id="max_operacoes" min="1" max="200" value="{{ user.max_operacoes_dia or 50 }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Gestão de Banca</label>
+                    <select id="tipo_gestao">
+                        <option value="fixo" {% if user.tipo_gestao == 'fixo' %}selected{% endif %}>Valor Fixo</option>
+                        <option value="martingale" {% if user.tipo_gestao == 'martingale' %}selected{% endif %}>Martingale</option>
+                        <option value="soros" {% if user.tipo_gestao == 'soros' %}selected{% endif %}>Soros</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="salvarConfig()">SALVAR CONFIGURAÇÕES</button>
+            </div>
+        </aside>
+        
+        <!-- MAIN - ROBÔ -->
+        <main class="robot-section">
+            <!-- Status do Robô -->
+            <div class="card">
+                <div class="robot-status">
+                    <div class="robot-icon">🤖</div>
+                    
+                    <div class="status-badge stopped" id="status-badge">
+                        <span class="status-dot stopped" id="status-dot"></span>
+                        <span id="status-text">Parado</span>
+                    </div>
+                    
+                    <div class="robot-controls">
+                        <button class="btn btn-success" id="btn-start" onclick="startRobot()">▶ INICIAR</button>
+                        <button class="btn btn-danger" id="btn-stop" onclick="stopRobot()" disabled>⏸ PARAR</button>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="lucro-dia">$0.00</div>
+                        <div class="stat-label">Lucro Hoje</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="ops-dia" style="color: var(--primary)">0</div>
+                        <div class="stat-label">Operações Hoje</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logs -->
+            <div class="card">
+                <h3>📋 Logs de Operação</h3>
+                <div class="logs-container" id="logs-container">
+                    <div class="log-entry">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-type INFO">INFO</span>
+                        <span class="log-message">Aguardando iniciar o robô...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ===== FUNÇÕES =====
+        
+        function salvarConfig() {
+            const data = {
+                deriv_token: document.getElementById('deriv_token').value,
+                valor_entrada: document.getElementById('valor_entrada').value,
+                stop_loss: document.getElementById('stop_loss').value,
+                take_profit: document.getElementById('take_profit').value,
+                max_operacoes_dia: document.getElementById('max_operacoes').value,
+                tipo_gestao: document.getElementById('tipo_gestao').value
+            };
+            
+            fetch('/api/salvar-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                if (data.status === 'success') {
+                    addLog('INFO', 'Configurações salvas!');
+                }
+            });
+        }
+        
+        function startRobot() {
+            fetch('/api/robot/start', {method: 'POST'})
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateStatus(true);
+                    addLog('INFO', 'Robô iniciado!');
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+        
+        function stopRobot() {
+            fetch('/api/robot/stop', {method: 'POST'})
+            .then(res => res.json())
+            .then(data => {
+                updateStatus(false);
+                addLog('INFO', 'Robô parado.');
+            });
+        }
+        
+        function updateStatus(running) {
+            const badge = document.getElementById('status-badge');
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const btnStart = document.getElementById('btn-start');
+            const btnStop = document.getElementById('btn-stop');
+            
+            if (running) {
+                badge.className = 'status-badge running';
+                dot.className = 'status-dot running';
+                text.textContent = 'Operando';
+                btnStart.disabled = true;
+                btnStop.disabled = false;
+            } else {
+                badge.className = 'status-badge stopped';
+                dot.className = 'status-dot stopped';
+                text.textContent = 'Parado';
+                btnStart.disabled = false;
+                btnStop.disabled = true;
+            }
+        }
+        
+        function addLog(tipo, mensagem) {
+            const container = document.getElementById('logs-container');
+            const now = new Date().toLocaleTimeString('pt-BR');
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${now}]</span>
+                <span class="log-type ${tipo}">${tipo}</span>
+                <span class="log-message">${mensagem}</span>
+            `;
+            
+            container.insertBefore(entry, container.firstChild);
+            
+            // Limita a 50 logs
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+        
+        function loadStatus() {
+            fetch('/api/robot/status')
+            .then(res => res.json())
+            .then(data => {
+                updateStatus(data.running);
+                
+                // Atualiza stats
+                document.getElementById('lucro-dia').textContent = '$' + (data.lucro_dia || 0).toFixed(2);
+                document.getElementById('ops-dia').textContent = data.operacoes_dia || 0;
+                
+                // Atualiza logs
+                if (data.logs && data.logs.length > 0) {
+                    const container = document.getElementById('logs-container');
+                    container.innerHTML = '';
+                    data.logs.reverse().forEach(log => {
+                        const entry = document.createElement('div');
+                        entry.className = 'log-entry';
+                        entry.innerHTML = `
+                            <span class="log-time">[${log.data}]</span>
+                            <span class="log-type ${log.tipo}">${log.tipo}</span>
+                            <span class="log-message">${log.mensagem}</span>
+                        `;
+                        container.appendChild(entry);
+                    });
+                }
+            });
+        }
+        
+        // Carrega status inicial
+        loadStatus();
+        
+        // Atualiza a cada 5 segundos
+        setInterval(loadStatus, 5000);
+    </script>
+</body>
+</html>
