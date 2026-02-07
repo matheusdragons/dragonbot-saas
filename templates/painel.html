@@ -37,35 +37,11 @@
             z-index: 100;
         }
         
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-        }
-        
-        .nav-menu {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .nav-link {
-            color: #888;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-size: 14px;
-        }
-        
-        .nav-link:hover, .nav-link.active {
-            color: var(--primary);
-            background: rgba(0, 217, 255, 0.1);
-        }
-        
-        .nav-link.logout {
-            color: var(--danger);
-        }
+        .logo { display: flex; align-items: center; text-decoration: none; }
+        .nav-menu { display: flex; gap: 10px; }
+        .nav-link { color: #888; text-decoration: none; padding: 10px 20px; border-radius: 8px; transition: all 0.3s; font-size: 14px; }
+        .nav-link:hover, .nav-link.active { color: var(--primary); background: rgba(0, 217, 255, 0.1); }
+        .nav-link.logout { color: var(--danger); }
         
         /* CONTAINER */
         .container {
@@ -77,9 +53,7 @@
             margin: 0 auto;
         }
         
-        @media (max-width: 900px) {
-            .container { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
         
         /* CARDS */
         .card {
@@ -99,17 +73,8 @@
         }
         
         /* FORM */
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 5px;
-        }
-        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
         .form-group input, .form-group select {
             width: 100%;
             padding: 12px;
@@ -119,11 +84,7 @@
             color: white;
             font-size: 14px;
         }
-        
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
         
         /* BUTTONS */
         .btn {
@@ -140,26 +101,82 @@
         .btn-primary { background: var(--primary); color: black; }
         .btn-success { background: var(--success); color: black; }
         .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: black; }
         
         .btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         
-        /* ROBOT SECTION */
-        .robot-section {
+        .btn-sm { padding: 8px 16px; font-size: 12px; width: auto; }
+        
+        /* CONEXÃO STATUS */
+        .connection-status {
             display: flex;
-            flex-direction: column;
-            gap: 20px;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
         
-        .robot-status {
+        .connection-status.disconnected {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+        
+        .connection-status.loading {
+            background: rgba(255, 165, 2, 0.1);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+        
+        /* SALDO CARD */
+        .saldo-card {
+            background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+            border: 1px solid #2d333f;
+            border-radius: 15px;
+            padding: 25px;
             text-align: center;
-            padding: 40px;
-        }
-        
-        .robot-icon {
-            font-size: 80px;
             margin-bottom: 20px;
         }
+        
+        .saldo-label { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .saldo-valor { font-size: 36px; font-weight: bold; color: var(--success); }
+        .saldo-currency { font-size: 14px; color: #888; }
+        
+        .conta-tipo {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        
+        .conta-tipo.demo { background: rgba(0, 217, 255, 0.2); color: var(--primary); }
+        .conta-tipo.real { background: rgba(0, 255, 136, 0.2); color: var(--success); }
+        
+        .trocar-conta-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        
+        /* ROBOT SECTION */
+        .robot-section { display: flex; flex-direction: column; gap: 20px; }
+        
+        .robot-status { text-align: center; padding: 40px; }
+        .robot-icon { font-size: 80px; margin-bottom: 20px; }
         
         .status-badge {
             display: inline-flex;
@@ -171,44 +188,17 @@
             margin-bottom: 20px;
         }
         
-        .status-badge.running {
-            background: rgba(0, 255, 136, 0.1);
-            color: var(--success);
-        }
+        .status-badge.running { background: rgba(0, 255, 136, 0.1); color: var(--success); }
+        .status-badge.stopped { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
         
-        .status-badge.stopped {
-            background: rgba(255, 71, 87, 0.1);
-            color: var(--danger);
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        
-        .status-dot.running {
-            background: var(--success);
-            animation: pulse 1.5s infinite;
-        }
-        
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .status-dot.running { background: var(--success); animation: pulse 1.5s infinite; }
         .status-dot.stopped { background: var(--danger); }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
-        .robot-controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-        
-        .robot-controls .btn {
-            width: auto;
-            padding: 15px 40px;
-        }
+        .robot-controls { display: flex; gap: 15px; justify-content: center; }
+        .robot-controls .btn { width: auto; padding: 15px 40px; }
         
         /* STATS */
         .stats-grid {
@@ -225,38 +215,22 @@
             text-align: center;
         }
         
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--success);
-        }
-        
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--success); }
         .stat-value.negative { color: var(--danger); }
-        
-        .stat-label {
-            font-size: 11px;
-            color: #888;
-            margin-top: 5px;
-        }
+        .stat-label { font-size: 11px; color: #888; margin-top: 5px; }
         
         /* LOGS */
         .logs-container {
             background: var(--bg);
             border-radius: 10px;
             padding: 15px;
-            height: 300px;
+            height: 250px;
             overflow-y: auto;
             font-family: 'Consolas', monospace;
             font-size: 12px;
         }
         
-        .log-entry {
-            padding: 8px 0;
-            border-bottom: 1px solid #1a1f2a;
-            display: flex;
-            gap: 10px;
-        }
-        
+        .log-entry { padding: 8px 0; border-bottom: 1px solid #1a1f2a; display: flex; gap: 10px; }
         .log-time { color: #555; }
         .log-type { font-weight: bold; }
         .log-type.INFO { color: var(--primary); }
@@ -276,9 +250,20 @@
             margin-top: 15px;
         }
         
-        .info-box a {
-            color: var(--primary);
+        .info-box a { color: var(--primary); }
+        
+        /* LOADING */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
         }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -286,23 +271,11 @@
     <header class="header">
         <a href="/painel" class="logo">
             <svg width="150" height="38" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#00d9ff" />
-                        <stop offset="100%" style="stop-color:#00ff88" />
-                    </linearGradient>
-                </defs>
-                <g transform="translate(5, 10)">
-                    <path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" stroke="url(#grad)" stroke-width="2.5" fill="none"/>
-                    <rect x="8" y="12" width="3" height="10" fill="#00ff88"/>
-                    <rect x="14" y="8" width="3" height="12" fill="#00d9ff"/>
-                    <rect x="20" y="5" width="3" height="14" fill="#00ff88"/>
-                </g>
-                <text x="45" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text>
-                <text x="125" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="url(#grad)">BOT</text>
+                <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#00d9ff" /><stop offset="100%" style="stop-color:#00ff88" /></linearGradient></defs>
+                <g transform="translate(5, 10)"><path d="M 0 15 L 0 0 L 15 0 Q 30 0, 30 15 Q 30 30, 15 30 L 0 30 Z" stroke="url(#grad)" stroke-width="2.5" fill="none"/><rect x="8" y="12" width="3" height="10" fill="#00ff88"/><rect x="14" y="8" width="3" height="12" fill="#00d9ff"/><rect x="20" y="5" width="3" height="14" fill="#00ff88"/></g>
+                <text x="45" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="#ffffff">DRAGON</text><text x="125" y="32" font-family="Segoe UI" font-size="20" font-weight="bold" fill="url(#grad)">BOT</text>
             </svg>
         </a>
-        
         <nav class="nav-menu">
             <a href="/painel" class="nav-link active">🤖 Robô</a>
             <a href="/operacoes" class="nav-link">📊 Operações</a>
@@ -314,26 +287,52 @@
 
     <!-- CONTAINER -->
     <div class="container">
-        <!-- SIDEBAR - CONFIGURAÇÕES -->
+        <!-- SIDEBAR -->
         <aside>
-            <!-- Token Deriv -->
+            <!-- Saldo da Conta -->
+            <div class="saldo-card">
+                <div class="saldo-label">SALDO DA CONTA</div>
+                <div class="saldo-valor" id="saldo-valor">$0.00</div>
+                <div class="saldo-currency" id="saldo-currency">USD</div>
+                
+                <div class="conta-tipo demo" id="conta-tipo">
+                    <span id="conta-tipo-icon">🎮</span>
+                    <span id="conta-tipo-texto">DEMO</span>
+                </div>
+                
+                <div class="trocar-conta-btns">
+                    <button class="btn btn-sm btn-primary" onclick="trocarConta('demo')" id="btn-demo">Demo</button>
+                    <button class="btn btn-sm btn-warning" onclick="trocarConta('real')" id="btn-real">Real</button>
+                </div>
+            </div>
+            
+            <!-- Conexão Deriv -->
             <div class="card">
                 <h3>🔑 Conexão Deriv</h3>
+                
+                <div class="connection-status disconnected" id="connection-status">
+                    <span id="connection-icon">❌</span>
+                    <span id="connection-text">Não conectado</span>
+                </div>
+                
                 <div class="form-group">
                     <label>Token de API</label>
                     <input type="password" id="deriv_token" placeholder="Cole seu token aqui" value="{{ user.deriv_token or '' }}">
                 </div>
-                <button class="btn btn-primary" onclick="salvarConfig()">SALVAR TOKEN</button>
+                
+                <button class="btn btn-primary" onclick="testarConexao()" id="btn-testar">
+                    <span id="btn-testar-text">TESTAR CONEXÃO</span>
+                </button>
                 
                 <div class="info-box">
                     <strong>Como obter o token:</strong><br>
                     1. Acesse <a href="https://app.deriv.com/account/api-token" target="_blank">app.deriv.com/account/api-token</a><br>
-                    2. Crie um token com permissões: Read, Trade<br>
+                    2. Crie um token com permissões: Read, Trade, Payments<br>
                     3. Copie e cole acima
                 </div>
             </div>
             
-            <!-- Configurações do Robô -->
+            <!-- Configurações -->
             <div class="card" style="margin-top: 20px;">
                 <h3>⚙️ Configurações</h3>
                 
@@ -370,7 +369,7 @@
             </div>
         </aside>
         
-        <!-- MAIN - ROBÔ -->
+        <!-- MAIN -->
         <main class="robot-section">
             <!-- Status do Robô -->
             <div class="card">
@@ -416,8 +415,129 @@
     </div>
 
     <script>
-        // ===== FUNÇÕES =====
+        // ===== VARIÁVEIS GLOBAIS =====
+        let isConnected = false;
+        let currentAccountType = 'demo';
         
+        // ===== TESTAR CONEXÃO =====
+        function testarConexao() {
+            const token = document.getElementById('deriv_token').value;
+            const btn = document.getElementById('btn-testar');
+            const btnText = document.getElementById('btn-testar-text');
+            const status = document.getElementById('connection-status');
+            const icon = document.getElementById('connection-icon');
+            const text = document.getElementById('connection-text');
+            
+            if (!token) {
+                alert('Por favor, insira o token da Deriv');
+                return;
+            }
+            
+            // Loading
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="loading-spinner"></span> Testando...';
+            status.className = 'connection-status loading';
+            icon.textContent = '⏳';
+            text.textContent = 'Conectando...';
+            
+            fetch('/api/deriv/testar-conexao', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({token: token})
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btnText.textContent = 'TESTAR CONEXÃO';
+                
+                if (data.success) {
+                    status.className = 'connection-status connected';
+                    icon.textContent = '✅';
+                    text.textContent = `Conectado: ${data.loginid}`;
+                    isConnected = true;
+                    
+                    addLog('INFO', `Conectado à Deriv - ${data.email}`);
+                    
+                    // Atualiza saldo
+                    atualizarSaldo();
+                } else {
+                    status.className = 'connection-status disconnected';
+                    icon.textContent = '❌';
+                    text.textContent = `Erro: ${data.error}`;
+                    isConnected = false;
+                    
+                    addLog('ERRO', data.error);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btnText.textContent = 'TESTAR CONEXÃO';
+                status.className = 'connection-status disconnected';
+                icon.textContent = '❌';
+                text.textContent = 'Erro de conexão';
+                addLog('ERRO', err.message);
+            });
+        }
+        
+        // ===== ATUALIZAR SALDO =====
+        function atualizarSaldo() {
+            fetch('/api/deriv/saldo')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('saldo-valor').textContent = `$${data.balance.toFixed(2)}`;
+                    document.getElementById('saldo-currency').textContent = data.currency;
+                }
+            });
+        }
+        
+        // ===== TROCAR CONTA =====
+        function trocarConta(tipo) {
+            const btnDemo = document.getElementById('btn-demo');
+            const btnReal = document.getElementById('btn-real');
+            
+            btnDemo.disabled = true;
+            btnReal.disabled = true;
+            
+            fetch('/api/deriv/trocar-conta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tipo: tipo})
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnDemo.disabled = false;
+                btnReal.disabled = false;
+                
+                if (data.success) {
+                    currentAccountType = tipo;
+                    atualizarTipoConta(tipo);
+                    addLog('INFO', data.message);
+                    atualizarSaldo();
+                } else {
+                    alert(data.error);
+                    addLog('ERRO', data.error);
+                }
+            });
+        }
+        
+        function atualizarTipoConta(tipo) {
+            const badge = document.getElementById('conta-tipo');
+            const icon = document.getElementById('conta-tipo-icon');
+            const texto = document.getElementById('conta-tipo-texto');
+            
+            if (tipo === 'demo') {
+                badge.className = 'conta-tipo demo';
+                icon.textContent = '🎮';
+                texto.textContent = 'DEMO';
+            } else {
+                badge.className = 'conta-tipo real';
+                icon.textContent = '💰';
+                texto.textContent = 'REAL';
+            }
+        }
+        
+        // ===== SALVAR CONFIG =====
         function salvarConfig() {
             const data = {
                 deriv_token: document.getElementById('deriv_token').value,
@@ -435,22 +555,27 @@
             })
             .then(res => res.json())
             .then(data => {
+                addLog('INFO', 'Configurações salvas!');
                 alert(data.message);
-                if (data.status === 'success') {
-                    addLog('INFO', 'Configurações salvas!');
-                }
             });
         }
         
+        // ===== START/STOP ROBOT =====
         function startRobot() {
+            if (!isConnected) {
+                alert('Por favor, conecte primeiro à Deriv');
+                return;
+            }
+            
             fetch('/api/robot/start', {method: 'POST'})
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
                     updateStatus(true);
-                    addLog('INFO', 'Robô iniciado!');
+                    addLog('INFO', '🚀 Robô iniciado!');
                 } else {
                     alert(data.message);
+                    addLog('ERRO', data.message);
                 }
             });
         }
@@ -460,7 +585,7 @@
             .then(res => res.json())
             .then(data => {
                 updateStatus(false);
-                addLog('INFO', 'Robô parado.');
+                addLog('INFO', '⏸ Robô parado.');
             });
         }
         
@@ -486,6 +611,7 @@
             }
         }
         
+        // ===== LOGS =====
         function addLog(tipo, mensagem) {
             const container = document.getElementById('logs-container');
             const now = new Date().toLocaleTimeString('pt-BR');
@@ -500,45 +626,43 @@
             
             container.insertBefore(entry, container.firstChild);
             
-            // Limita a 50 logs
             while (container.children.length > 50) {
                 container.removeChild(container.lastChild);
             }
         }
         
+        // ===== LOAD STATUS =====
         function loadStatus() {
             fetch('/api/robot/status')
             .then(res => res.json())
             .then(data => {
                 updateStatus(data.running);
                 
-                // Atualiza stats
                 document.getElementById('lucro-dia').textContent = '$' + (data.lucro_dia || 0).toFixed(2);
                 document.getElementById('ops-dia').textContent = data.operacoes_dia || 0;
                 
-                // Atualiza logs
-                if (data.logs && data.logs.length > 0) {
-                    const container = document.getElementById('logs-container');
-                    container.innerHTML = '';
-                    data.logs.reverse().forEach(log => {
-                        const entry = document.createElement('div');
-                        entry.className = 'log-entry';
-                        entry.innerHTML = `
-                            <span class="log-time">[${log.data}]</span>
-                            <span class="log-type ${log.tipo}">${log.tipo}</span>
-                            <span class="log-message">${log.mensagem}</span>
-                        `;
-                        container.appendChild(entry);
-                    });
+                if (data.account_type) {
+                    atualizarTipoConta(data.account_type);
+                }
+                
+                if (data.deriv_configured) {
+                    isConnected = true;
+                    document.getElementById('connection-status').className = 'connection-status connected';
+                    document.getElementById('connection-icon').textContent = '✅';
+                    document.getElementById('connection-text').textContent = 'Conectado';
+                    atualizarSaldo();
                 }
             });
         }
         
-        // Carrega status inicial
+        // ===== INIT =====
         loadStatus();
         
-        // Atualiza a cada 5 segundos
-        setInterval(loadStatus, 5000);
+        // Atualiza a cada 10 segundos
+        setInterval(() => {
+            loadStatus();
+            if (isConnected) atualizarSaldo();
+        }, 10000);
     </script>
 </body>
 </html>
