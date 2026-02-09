@@ -1,662 +1,638 @@
-"""
-DragonBot SaaS - Servidor Flask Principal
-Versão: 6.0 - Correção do travamento
-"""
-
 import os
-import sys
-import asyncio
-import threading
-import logging
-from datetime import datetime, timedelta
-from functools import wraps
-import uuid
-import json
-
-# Path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Flask
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import uuid
+import asyncio
+import json
+import websockets
 
-# Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
-
-# Flask App
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dragon_secret_key_pro_99')
 
-# Database
-database_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
-if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+# CONFIGURAÇÃO DO BANCO
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Import models
-from models import db, User, Operacao, LogRobo, init_db
-init_db(app)
+db = SQLAlchemy(app)
 
-# Import bot - com tratamento de erro
-BOT_AVAILABLE = False
-try:
-    from bot.robot import TradingRobot
-    from bot.deriv_api import DerivAPI
-    BOT_AVAILABLE = True
-    logger.info("✅ Módulo bot carregado")
-except ImportError as e:
-    logger.warning(f"⚠️ Bot não disponível: {e}")
+# ==================== MODELOS ====================
 
-# ============================================================
-# ROBOT MANAGER SIMPLIFICADO
-# ============================================================
-class SimpleRobotManager:
-    def __init__(self):
-        self.robots = {}
-        self.enabled = BOT_AVAILABLE
-        logger.info(f"🤖 Robot Manager iniciado - Bot disponível: {self.enabled}")
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
     
-    def start_robot(self, user_id, config):
-        """Inicia robô em thread separada."""
-        if not self.enabled:
-            logger.error("Bot não está disponível")
-            return False
-        
-        try:
-            # Para robô anterior se existir
-            if user_id in self.robots:
-                self.stop_robot(user_id)
-            
-            logger.info(f"🚀 Iniciando robô para usuário {user_id}...")
-            
-            # Cria o robô
-            robot = TradingRobot(config)
-            
-            # Callbacks para salvar no banco
-            def save_operation(user_id, tipo, ativo, valor, resultado, lucro, barrier=None, confianca=None, **kwargs):
-                try:
-                    with app.app_context():
-                        op = Operacao(
-                            user_id=user_id,
-                            tipo=tipo,
-                            ativo=ativo,
-                            valor=valor,
-                            resultado=resultado,
-                            lucro=lucro,
-                            barrier=barrier,
-                            confianca=confianca,
-                            data_entrada=datetime.utcnow()
-                        )
-                        db.session.add(op)
-                        db.session.commit()
-                        logger.debug(f"Operação salva: {tipo} {resultado}")
-                except Exception as e:
-                    logger.error(f"Erro ao salvar operação: {e}")
-            
-            def save_log(user_id, tipo, mensagem):
-                try:
-                    with app.app_context():
-                        log = LogRobo(
-                            user_id=user_id,
-                            tipo=tipo,
-                            mensagem=mensagem,
-                            data=datetime.utcnow()
-                        )
-                        db.session.add(log)
-                        db.session.commit()
-                except Exception as e:
-                    logger.error(f"Erro ao salvar log: {e}")
-            
-            robot.save_operation_callback = save_operation
-            robot.save_log_callback = save_log
-            
-            # Função que roda em thread
-            def run_robot_thread():
-                logger.info(f"🏃 Thread do robô iniciada para usuário {user_id}")
-                
-                # Cria novo event loop para esta thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    # Roda o robô
-                    loop.run_until_complete(robot.start())
-                except Exception as e:
-                    logger.error(f"❌ Erro no robô: {e}")
-                finally:
-                    loop.close()
-                    logger.info(f"🛑 Thread do robô finalizada para usuário {user_id}")
-            
-            # Cria e inicia a thread
-            thread = threading.Thread(target=run_robot_thread, daemon=True)
-            thread.start()
-            
-            # Salva referências
-            self.robots[user_id] = {
-                'robot': robot,
-                'thread': thread,
-                'started_at': datetime.now()
-            }
-            
-            logger.info(f"✅ Robô iniciado com sucesso para usuário {user_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Erro ao iniciar robô: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return False
+    # Assinatura
+    status_assinatura = db.Column(db.String(20), default='inativo')
+    plano = db.Column(db.String(50), default='mensal')
+    validade = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def stop_robot(self, user_id):
-        """Para o robô do usuário."""
-        if user_id not in self.robots:
-            logger.info(f"Robô não encontrado para usuário {user_id}")
-            return False
-        
-        try:
-            robot_data = self.robots[user_id]
-            robot = robot_data['robot']
-            
-            # Para o robô
-            robot.stop()
-            
-            # Remove da lista
-            del self.robots[user_id]
-            
-            logger.info(f"✅ Robô parado para usuário {user_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao parar robô: {e}")
-            return False
+    # Segurança
+    session_token = db.Column(db.String(100), unique=True)
     
-    def get_status(self, user_id):
-        """Retorna status do robô."""
-        if user_id not in self.robots:
-            return None
-        
-        try:
-            robot = self.robots[user_id]['robot']
-            return robot.get_status()
-        except:
-            return None
+    # Deriv
+    deriv_token = db.Column(db.String(200))
+    deriv_app_id = db.Column(db.String(20), default='1089')
+    deriv_account_type = db.Column(db.String(20), default='demo')
     
-    def is_running(self, user_id):
-        """Verifica se robô está rodando."""
-        return user_id in self.robots
+    # Configurações do Robô
+    robot_ativo = db.Column(db.Boolean, default=False)
+    valor_entrada = db.Column(db.Float, default=1.0)
+    stop_loss = db.Column(db.Float, default=50.0)
+    take_profit = db.Column(db.Float, default=100.0)
+    max_operacoes_dia = db.Column(db.Integer, default=50)
+    tipo_gestao = db.Column(db.String(20), default='fixo')
+    nivel_martingale = db.Column(db.Float, default=2.0)
+    
+    # Tipo de Estratégia
+    estrategia_tipo = db.Column(db.String(20), default='technical')
+    
+    # Controle
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    ultimo_acesso = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# Instância global
-robot_manager = SimpleRobotManager()
-
-# ============================================================
-# HELPERS
-# ============================================================
-def run_async(coro):
-    """Executa coroutine."""
-    if not BOT_AVAILABLE:
-        return None
+class Operacao(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
+    tipo = db.Column(db.String(20))
+    ativo = db.Column(db.String(50), default='R_75')
+    valor = db.Column(db.Float)
+    resultado = db.Column(db.String(10))
+    lucro = db.Column(db.Float, default=0)
+    
+    # Para estratégia Over/Under
+    barrier = db.Column(db.String(5))
+    
+    rsi = db.Column(db.Float, nullable=True)
+    bollinger = db.Column(db.String(20), nullable=True)
+    value_chart = db.Column(db.Float, nullable=True)
+    
+    data_entrada = db.Column(db.DateTime, default=datetime.utcnow)
+    data_resultado = db.Column(db.DateTime)
+
+
+class LogRobo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    tipo = db.Column(db.String(20))
+    mensagem = db.Column(db.Text)
+    data = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+with app.app_context():
+    db.create_all()
+
+
+# ==================== FUNÇÕES DERIV API ====================
+
+async def deriv_authorize(token):
+    """Testa conexão com a Deriv e retorna dados da conta"""
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(coro)
-        loop.close()
-        return result
+        uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+        
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"authorize": token}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'error' in data:
+                return {'success': False, 'error': data['error']['message']}
+            
+            if 'authorize' in data:
+                auth = data['authorize']
+                return {
+                    'success': True,
+                    'email': auth.get('email', ''),
+                    'fullname': auth.get('fullname', ''),
+                    'balance': auth.get('balance', 0),
+                    'currency': auth.get('currency', 'USD'),
+                    'loginid': auth.get('loginid', ''),
+                    'is_virtual': auth.get('is_virtual', 1),
+                    'account_list': auth.get('account_list', [])
+                }
+            
+            return {'success': False, 'error': 'Resposta inválida'}
+            
+    except asyncio.TimeoutError:
+        return {'success': False, 'error': 'Timeout - Conexão demorou muito'}
     except Exception as e:
-        logger.error(f"Erro run_async: {e}")
-        return None
+        return {'success': False, 'error': str(e)}
 
-# ============================================================
-# DECORATORS
-# ============================================================
+
+async def deriv_get_balance(token):
+    """Busca saldo atual da conta"""
+    try:
+        uri = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+        
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"authorize": token}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'error' in data:
+                return {'success': False, 'error': data['error']['message']}
+            
+            await ws.send(json.dumps({"balance": 1, "subscribe": 0}))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if 'balance' in data:
+                return {
+                    'success': True,
+                    'balance': data['balance']['balance'],
+                    'currency': data['balance']['currency'],
+                    'loginid': data['balance']['loginid']
+                }
+            
+            return {'success': False, 'error': 'Não foi possível obter saldo'}
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def run_async(coro):
+    """Helper para rodar funções async no Flask"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+# ==================== FUNÇÕES AUXILIARES ====================
+
+def usuario_logado():
+    if 'user_id' not in session:
+        return None
+    user = User.query.get(session['user_id'])
+    if user and session.get('session_token') == user.session_token:
+        return user
+    return None
+
+
 def requer_login(f):
+    from functools import wraps
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Faça login para continuar.', 'warning')
+    def decorated(*args, **kwargs):
+        user = usuario_logado()
+        if not user:
             return redirect(url_for('login'))
-        
-        user = User.query.get(session['user_id'])
-        if not user or user.session_token != session.get('session_token'):
-            session.clear()
-            flash('Sessão expirada.', 'warning')
-            return redirect(url_for('login'))
-        
         return f(*args, **kwargs)
-    return decorated_function
+    return decorated
 
 
 def requer_assinatura(f):
+    from functools import wraps
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user = User.query.get(session.get('user_id'))
+    def decorated(*args, **kwargs):
+        user = usuario_logado()
         if not user:
             return redirect(url_for('login'))
-        if not user.is_subscription_active():
+        if user.status_assinatura != 'ativo' or user.validade < datetime.utcnow():
             return redirect(url_for('assinatura_expirada'))
         return f(*args, **kwargs)
-    return decorated_function
+    return decorated
 
-# ============================================================
-# ROTAS PÚBLICAS
-# ============================================================
+
+# ==================== ROTAS PÚBLICAS ====================
+
 @app.route('/')
 def landing():
-    if 'user_id' in session:
-        return redirect(url_for('painel'))
     return render_template('landing.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        
+        email = request.form.get('email', '').lower().strip()
+        senha = request.form.get('password', '')
         user = User.query.filter_by(email=email).first()
         
-        if user and user.check_password(password):
-            session_token = user.generate_session_token()
+        if user and check_password_hash(user.password, senha):
+            novo_token = str(uuid.uuid4())
+            user.session_token = novo_token
             user.ultimo_acesso = datetime.utcnow()
             db.session.commit()
             
             session['user_id'] = user.id
-            session['session_token'] = session_token
-            session['email'] = user.email
-            
-            flash('Login realizado com sucesso!', 'success')
+            session['session_token'] = novo_token
             return redirect(url_for('painel'))
-        else:
-            flash('Email ou senha incorretos.', 'danger')
+        
+        return render_template('login.html', erro="E-mail ou senha inválidos. Verifique seus dados e tente novamente.")
     
     return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
-    user_id = session.get('user_id')
-    
-    if user_id and robot_manager.is_running(user_id):
-        robot_manager.stop_robot(user_id)
-        user = User.query.get(user_id)
-        if user:
-            user.robot_ativo = False
-            db.session.commit()
-    
     session.clear()
-    flash('Você saiu do sistema.', 'info')
     return redirect(url_for('landing'))
 
 
 @app.route('/assinatura-expirada')
-@requer_login
 def assinatura_expirada():
     return render_template('erro.html', 
-                          titulo='Assinatura Expirada',
-                          mensagem='Renove sua assinatura para continuar.')
+        mensagem="Sua assinatura expirou ou está inativa.",
+        botao_texto="Ver Planos",
+        botao_link="/#planos")
 
-# ============================================================
-# ÁREA DO CLIENTE
-# ============================================================
+
+# ==================== ROTAS DO PAINEL ====================
+
 @app.route('/painel')
 @requer_login
 @requer_assinatura
 def painel():
-    user = User.query.get(session['user_id'])
-    
-    hoje = datetime.utcnow().date()
-    operacoes_hoje = Operacao.query.filter(
-        Operacao.user_id == user.id,
-        db.func.date(Operacao.data_entrada) == hoje
-    ).all()
-    
-    wins = sum(1 for op in operacoes_hoje if op.resultado == 'WIN')
-    losses = sum(1 for op in operacoes_hoje if op.resultado == 'LOSS')
-    lucro_hoje = sum(op.lucro for op in operacoes_hoje if op.lucro)
-    
-    robot_status = robot_manager.get_status(user.id) if BOT_AVAILABLE else None
-    
-    return render_template('painel.html', 
-                          user=user,
-                          operacoes_hoje=len(operacoes_hoje),
-                          wins=wins,
-                          losses=losses,
-                          lucro_hoje=lucro_hoje,
-                          robot_status=robot_status,
-                          robot_running=robot_manager.is_running(user.id),
-                          bot_available=BOT_AVAILABLE)
+    user = usuario_logado()
+    return render_template('painel.html', user=user)
 
 
 @app.route('/conta')
 @requer_login
-@requer_assinatura
 def conta():
-    user = User.query.get(session['user_id'])
-    return render_template('conta.html', user=user, bot_available=BOT_AVAILABLE)
+    user = usuario_logado()
+    return render_template('conta.html', user=user)
 
 
 @app.route('/operacoes')
 @requer_login
 @requer_assinatura
 def operacoes():
-    user = User.query.get(session['user_id'])
-    ops = Operacao.query.filter_by(user_id=user.id)\
-                        .order_by(Operacao.data_entrada.desc())\
-                        .limit(100).all()
-    return render_template('operacoes.html', user=user, operacoes=ops)
+    user = usuario_logado()
+    ops = Operacao.query.filter_by(user_id=user.id).order_by(Operacao.data_entrada.desc()).limit(100).all()
+    
+    total_ops = len(ops)
+    wins = len([o for o in ops if o.resultado == 'WIN'])
+    losses = len([o for o in ops if o.resultado == 'LOSS'])
+    lucro_total = sum([o.lucro for o in ops if o.lucro])
+    
+    return render_template('operacoes.html', 
+        user=user, 
+        operacoes=ops,
+        total_ops=total_ops,
+        wins=wins,
+        losses=losses,
+        lucro_total=lucro_total)
 
 
 @app.route('/educacional')
 @requer_login
-@requer_assinatura
 def educacional():
-    user = User.query.get(session['user_id'])
+    user = usuario_logado()
     return render_template('educacional.html', user=user)
 
-# ============================================================
-# API DO ROBÔ - CORRIGIDA
-# ============================================================
+
+# ==================== API DO ROBÔ ====================
+
+@app.route('/api/salvar-config', methods=['POST'])
+@requer_login
+def salvar_config():
+    user = usuario_logado()
+    data = request.get_json()
+    
+    if 'deriv_token' in data:
+        user.deriv_token = data['deriv_token']
+    if 'valor_entrada' in data:
+        user.valor_entrada = float(data['valor_entrada'])
+    if 'stop_loss' in data:
+        user.stop_loss = float(data['stop_loss'])
+    if 'take_profit' in data:
+        user.take_profit = float(data['take_profit'])
+    if 'max_operacoes_dia' in data:
+        user.max_operacoes_dia = int(data['max_operacoes_dia'])
+    if 'tipo_gestao' in data:
+        user.tipo_gestao = data['tipo_gestao']
+    if 'nivel_martingale' in data:
+        user.nivel_martingale = float(data['nivel_martingale'])
+    if 'estrategia_tipo' in data:
+        user.estrategia_tipo = data['estrategia_tipo']
+    
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': 'Configurações salvas!'})
+
+
+@app.route('/api/deriv/testar-conexao', methods=['POST'])
+@requer_login
+def testar_conexao_deriv():
+    """Testa se o token da Deriv é válido"""
+    user = usuario_logado()
+    data = request.get_json()
+    
+    token = data.get('token', user.deriv_token)
+    
+    if not token:
+        return jsonify({'success': False, 'error': 'Token não fornecido'})
+    
+    result = run_async(deriv_authorize(token))
+    
+    if result['success']:
+        user.deriv_token = token
+        db.session.commit()
+        
+        log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f"Conectado à Deriv - Conta: {result['loginid']}")
+        db.session.add(log)
+        db.session.commit()
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/saldo')
+@requer_login
+def get_saldo_deriv():
+    """Retorna saldo atual da conta Deriv"""
+    user = usuario_logado()
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    result = run_async(deriv_get_balance(user.deriv_token))
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/contas')
+@requer_login
+def get_contas_deriv():
+    """Lista todas as contas disponíveis (demo e real)"""
+    user = usuario_logado()
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    result = run_async(deriv_authorize(user.deriv_token))
+    
+    if result['success']:
+        contas = []
+        for acc in result.get('account_list', []):
+            contas.append({
+                'loginid': acc.get('loginid', ''),
+                'is_virtual': acc.get('is_virtual', 1),
+                'currency': acc.get('currency', 'USD'),
+                'tipo': 'Demo' if acc.get('is_virtual', 1) else 'Real'
+            })
+        
+        return jsonify({
+            'success': True,
+            'conta_atual': result['loginid'],
+            'is_demo': result['is_virtual'],
+            'contas': contas
+        })
+    
+    return jsonify(result)
+
+
+@app.route('/api/deriv/trocar-conta', methods=['POST'])
+@requer_login
+def trocar_conta_deriv():
+    """Troca para outra conta (demo/real)"""
+    user = usuario_logado()
+    data = request.get_json()
+    
+    tipo_desejado = data.get('tipo', 'demo')
+    
+    if not user.deriv_token:
+        return jsonify({'success': False, 'error': 'Token não configurado'})
+    
+    result = run_async(deriv_authorize(user.deriv_token))
+    
+    if not result['success']:
+        return jsonify(result)
+    
+    conta_encontrada = None
+    for acc in result.get('account_list', []):
+        is_virtual = acc.get('is_virtual', 1)
+        if tipo_desejado == 'demo' and is_virtual:
+            conta_encontrada = acc
+            break
+        elif tipo_desejado == 'real' and not is_virtual:
+            conta_encontrada = acc
+            break
+    
+    if conta_encontrada:
+        user.deriv_account_type = tipo_desejado
+        db.session.commit()
+        
+        log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f"Trocou para conta {tipo_desejado.upper()}: {conta_encontrada['loginid']}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f"Trocado para conta {tipo_desejado.upper()}",
+            'loginid': conta_encontrada['loginid'],
+            'tipo': tipo_desejado
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': f"Conta {tipo_desejado} não encontrada. Você precisa criar uma conta {tipo_desejado} na Deriv."
+        })
+
+
 @app.route('/api/robot/start', methods=['POST'])
 @requer_login
 @requer_assinatura
-def api_robot_start():
-    """Inicia o robô - VERSÃO CORRIGIDA."""
+def robot_start():
+    user = usuario_logado()
     
-    logger.info("="*60)
-    logger.info("🎯 REQUISIÇÃO PARA INICIAR ROBÔ")
-    logger.info("="*60)
+    if not user.deriv_token:
+        return jsonify({'status': 'error', 'message': 'Configure seu Token da Deriv primeiro!'})
     
-    # Verifica se bot está disponível
-    if not BOT_AVAILABLE:
-        logger.error("Bot não está disponível")
-        return jsonify({
-            'success': False, 
-            'message': 'Módulo do bot não está disponível'
-        }), 503
+    result = run_async(deriv_authorize(user.deriv_token))
+    if not result['success']:
+        return jsonify({'status': 'error', 'message': f"Erro na conexão: {result['error']}"})
     
-    try:
-        user = User.query.get(session['user_id'])
-        
-        logger.info(f"Usuário: {user.email}")
-        logger.info(f"Token Deriv: {'Sim' if user.deriv_token else 'Não'}")
-        
-        # Valida token
-        if not user.deriv_token:
-            return jsonify({
-                'success': False,
-                'message': 'Configure seu token da Deriv antes de iniciar'
-            }), 400
-        
-        # Verifica se já está rodando
-        if robot_manager.is_running(user.id):
-            return jsonify({
-                'success': False,
-                'message': 'Robô já está em execução'
-            }), 400
-        
-        # Prepara configuração
-        config = {
-            'user_id': user.id,
-            'deriv_token': user.deriv_token,
-            'deriv_app_id': user.deriv_app_id or '1089',
-            'valor_entrada': user.valor_entrada or 1.0,
-            'stop_loss': user.stop_loss or 50.0,
-            'take_profit': user.take_profit or 100.0,
-            'max_operacoes_dia': user.max_operacoes_dia or 20,
-            'tipo_gestao': user.tipo_gestao or 'fixo',
-            'nivel_martingale': user.nivel_martingale or 2.0,
-            'ativo': user.ativo_preferido or 'R_10'
-        }
-        
-        logger.info(f"Config: {json.dumps(config, indent=2)}")
-        
-        # Inicia o robô
-        logger.info("Chamando robot_manager.start_robot()...")
-        success = robot_manager.start_robot(user.id, config)
-        
-        if success:
-            # Atualiza status no banco
-            user.robot_ativo = True
-            db.session.commit()
-            
-            logger.info("✅ Robô iniciado com sucesso!")
-            
-            return jsonify({
-                'success': True,
-                'message': 'Robô iniciado com sucesso!',
-                'status': 'running'
-            })
-        else:
-            logger.error("Falha ao iniciar robô")
-            return jsonify({
-                'success': False,
-                'message': 'Falha ao iniciar o robô'
-            }), 500
-            
-    except Exception as e:
-        logger.error(f"❌ ERRO: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'message': f'Erro: {str(e)}'
-        }), 500
+    user.robot_ativo = True
+    db.session.commit()
+    
+    estrategia_nome = 'Probabilidade' if user.estrategia_tipo == 'probability' else 'Técnica'
+    log = LogRobo(user_id=user.id, tipo='INFO', mensagem=f'Robô iniciado - Estratégia: {estrategia_nome}')
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': 'Robô iniciado!', 'running': True})
 
 
 @app.route('/api/robot/stop', methods=['POST'])
 @requer_login
-def api_robot_stop():
-    """Para o robô."""
-    try:
-        user = User.query.get(session['user_id'])
-        
-        success = robot_manager.stop_robot(user.id) if BOT_AVAILABLE else False
-        
-        user.robot_ativo = False
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Robô parado!' if success else 'Robô não estava rodando'
-        })
-        
-    except Exception as e:
-        logger.error(f"Erro ao parar robô: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+def robot_stop():
+    user = usuario_logado()
+    
+    user.robot_ativo = False
+    db.session.commit()
+    
+    log = LogRobo(user_id=user.id, tipo='INFO', mensagem='Robô parado pelo usuário')
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': 'Robô parado!', 'running': False})
 
 
 @app.route('/api/robot/status')
 @requer_login
-def api_robot_status():
-    """Retorna status do robô."""
-    try:
-        user = User.query.get(session['user_id'])
-        
-        if not BOT_AVAILABLE:
-            return jsonify({
-                'success': False,
-                'message': 'Bot não disponível'
-            })
-        
-        status = robot_manager.get_status(user.id)
-        is_running = robot_manager.is_running(user.id)
-        
-        if status:
-            return jsonify({
-                'success': True,
-                'running': is_running,
-                'status': status
-            })
-        else:
-            # Retorna estatísticas do banco
-            hoje = datetime.utcnow().date()
-            operacoes_hoje = Operacao.query.filter(
-                Operacao.user_id == user.id,
-                db.func.date(Operacao.data_entrada) == hoje
-            ).all()
-            
-            wins = sum(1 for op in operacoes_hoje if op.resultado == 'WIN')
-            losses = sum(1 for op in operacoes_hoje if op.resultado == 'LOSS')
-            lucro = sum(op.lucro for op in operacoes_hoje if op.lucro)
-            
-            return jsonify({
-                'success': True,
-                'running': False,
-                'status': {
-                    'running': False,
-                    'operacoes_hoje': len(operacoes_hoje),
-                    'wins': wins,
-                    'losses': losses,
-                    'lucro_total': lucro,
-                    'logs': []
-                }
-            })
-            
-    except Exception as e:
-        logger.error(f"Erro ao buscar status: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@app.route('/api/robot/logs')
-@requer_login
-def api_robot_logs():
-    """Retorna logs do robô."""
-    try:
-        user = User.query.get(session['user_id'])
-        
-        # Tenta pegar logs em tempo real
-        if BOT_AVAILABLE:
-            status = robot_manager.get_status(user.id)
-            if status and status.get('logs'):
-                return jsonify({
-                    'success': True,
-                    'logs': status['logs']
-                })
-        
-        # Pega logs do banco
-        logs = LogRobo.query.filter_by(user_id=user.id)\
-                           .order_by(LogRobo.data.desc())\
-                           .limit(50).all()
-        
-        return jsonify({
-            'success': True,
-            'logs': [{
-                'tipo': log.tipo,
-                'mensagem': log.mensagem,
-                'data': log.data.isoformat()
-            } for log in logs]
-        })
-        
-    except Exception as e:
-        logger.error(f"Erro ao buscar logs: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-# ============================================================
-# CONFIGURAÇÕES
-# ============================================================
-@app.route('/api/salvar-config', methods=['POST'])
-@requer_login
-def api_salvar_config():
-    try:
-        user = User.query.get(session['user_id'])
-        data = request.json
-        
-        if 'valor_entrada' in data:
-            user.valor_entrada = float(data['valor_entrada'])
-        if 'stop_loss' in data:
-            user.stop_loss = float(data['stop_loss'])
-        if 'take_profit' in data:
-            user.take_profit = float(data['take_profit'])
-        if 'max_operacoes_dia' in data:
-            user.max_operacoes_dia = int(data['max_operacoes_dia'])
-        if 'tipo_gestao' in data:
-            user.tipo_gestao = data['tipo_gestao']
-        if 'nivel_martingale' in data:
-            user.nivel_martingale = float(data['nivel_martingale'])
-        if 'deriv_token' in data:
-            user.deriv_token = data['deriv_token']
-        
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Configurações salvas!'})
-        
-    except Exception as e:
-        logger.error(f"Erro ao salvar config: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 400
-
-# ============================================================
-# TESTE
-# ============================================================
-@app.route('/criar-teste-dragon-2024')
-def criar_usuario_teste():
-    try:
-        email = 'teste@dragonbot.com'
-        user = User.query.filter_by(email=email).first()
-        
-        if not user:
-            user = User(email=email)
-            db.session.add(user)
-        
-        user.set_password('dragon123')
-        user.status_assinatura = 'ativo'
-        user.plano = 'mensal'
-        user.validade = datetime.utcnow() + timedelta(days=30)
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Usuário teste criado!',
-            'credentials': {
-                'email': email,
-                'password': 'dragon123'
-            },
-            'bot_available': BOT_AVAILABLE
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/health')
-def health():
+def robot_status():
+    user = usuario_logado()
+    
+    logs = LogRobo.query.filter_by(user_id=user.id).order_by(LogRobo.data.desc()).limit(20).all()
+    logs_list = [{
+        'tipo': l.tipo,
+        'mensagem': l.mensagem,
+        'data': l.data.strftime('%H:%M:%S')
+    } for l in logs]
+    
+    hoje = datetime.utcnow().date()
+    ops_hoje = Operacao.query.filter(
+        Operacao.user_id == user.id,
+        Operacao.data_entrada >= datetime.combine(hoje, datetime.min.time())
+    ).all()
+    
+    lucro_dia = sum([o.lucro for o in ops_hoje if o.lucro])
+    ops_dia = len(ops_hoje)
+    
     return jsonify({
-        'status': 'healthy',
-        'bot_available': BOT_AVAILABLE,
-        'timestamp': datetime.now().isoformat()
+        'running': user.robot_ativo,
+        'deriv_configured': bool(user.deriv_token),
+        'logs': logs_list,
+        'lucro_dia': lucro_dia,
+        'operacoes_dia': ops_dia,
+        'account_type': user.deriv_account_type or 'demo',
+        'estrategia_tipo': user.estrategia_tipo or 'technical'
     })
 
+
+@app.route('/api/alterar-senha', methods=['POST'])
+@requer_login
+def alterar_senha():
+    user = usuario_logado()
+    data = request.get_json()
+    
+    nova_senha = data.get('nova_senha', '')
+    
+    if len(nova_senha) < 6:
+        return jsonify({'status': 'error', 'message': 'Senha deve ter no mínimo 6 caracteres'})
+    
+    user.password = generate_password_hash(nova_senha)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': 'Senha alterada com sucesso!'})
+
+
+# ==================== WEBHOOK KIRVANO ====================
+
+@app.route('/webhook-kirvano', methods=['POST'])
+def webhook_kirvano():
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "No data"}), 400
+
+    evento = data.get('event')
+    payload = data.get('payload', {})
+    email_cliente = payload.get('customer', {}).get('email', '').lower().strip()
+    produto = payload.get('product', {}).get('name', '').lower()
+
+    plano = 'mensal'
+    dias = 30
+    if 'trimestral' in produto:
+        plano = 'trimestral'
+        dias = 90
+
+    eventos_validos = ['order_approved', 'subscription_created', 'subscription_renewed', 'sale_approved']
+
+    if email_cliente and evento in eventos_validos:
+        user = User.query.filter_by(email=email_cliente).first()
+        
+        if not user:
+            senha_padrao = generate_password_hash('dragon123')
+            user = User(
+                email=email_cliente, 
+                password=senha_padrao, 
+                status_assinatura='ativo',
+                plano=plano,
+                validade=datetime.utcnow() + timedelta(days=dias)
+            )
+            db.session.add(user)
+        else:
+            user.status_assinatura = 'ativo'
+            user.plano = plano
+            user.validade = datetime.utcnow() + timedelta(days=dias)
+            
+        db.session.commit()
+        return jsonify({"status": "success"}), 200
+
+    return jsonify({"status": "ignored"}), 200
+
+
+# ==================== ROTA TEMPORÁRIA PARA TESTE ====================
+
+@app.route('/criar-teste-dragon-2024')
+def criar_usuario_teste():
+    user_existente = User.query.filter_by(email='teste@dragonbot.com').first()
+    if user_existente:
+        return """
+        <html>
+        <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
+            <h1 style="color: #00d9ff;">✅ Usuário já existe!</h1>
+            <p>Email: teste@dragonbot.com</p>
+            <p>Senha: dragon123</p>
+            <a href="/login" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN</a>
+        </body>
+        </html>
+        """
+    
+    novo_user = User(
+        email='teste@dragonbot.com',
+        password=generate_password_hash('dragon123'),
+        status_assinatura='ativo',
+        plano='mensal',
+        validade=datetime.utcnow() + timedelta(days=365),
+        deriv_app_id='1089',
+        robot_ativo=False,
+        valor_entrada=1.0,
+        stop_loss=50.0,
+        take_profit=100.0,
+        max_operacoes_dia=50,
+        tipo_gestao='fixo',
+        nivel_martingale=2.0,
+        estrategia_tipo='technical'
+    )
+    
+    db.session.add(novo_user)
+    db.session.commit()
+    
+    return """
+    <html>
+    <body style="background: #0b0e14; color: white; font-family: Arial; text-align: center; padding: 100px;">
+        <h1 style="color: #00ff88;">🎉 Usuário criado com sucesso!</h1>
+        <div style="background: #161a23; padding: 30px; border-radius: 15px; display: inline-block; margin-top: 30px;">
+            <p><strong>Email:</strong> teste@dragonbot.com</p>
+            <p><strong>Senha:</strong> dragon123</p>
+        </div>
+        <br><br>
+        <a href="/login" style="display: inline-block; padding: 15px 30px; background: #00ff88; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">FAZER LOGIN AGORA</a>
+    </body>
+    </html>
+    """
+
+
+# ==================== ERRO 404 ====================
 
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('erro.html', 
-                          titulo='Página não encontrada',
-                          mensagem='A página solicitada não existe.'), 404
+        mensagem="Página não encontrada.",
+        botao_texto="Voltar ao Início",
+        botao_link="/"), 404
 
 
-@app.errorhandler(500)
-def internal_error(e):
-    return render_template('erro.html',
-                          titulo='Erro interno',
-                          mensagem='Ocorreu um erro. Tente novamente.'), 500
+# ==================== RUN ====================
 
-# ============================================================
-# MAIN
-# ============================================================
 if __name__ == '__main__':
-    with app.app_context():
-        try:
-            db.create_all()
-            logger.info("✅ Banco de dados inicializado")
-        except Exception as e:
-            logger.error(f"Erro ao criar banco: {e}")
-    
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
